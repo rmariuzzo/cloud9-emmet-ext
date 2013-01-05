@@ -1,0 +1,11 @@
+{
+    "name" : "cloud9-zencoding-ext",
+    "version" : "0.0.1",
+    "devDependencies" : {
+        "shelljs" : "latest",
+        "tmp" : "latest"
+    },
+    "scripts" : {
+        "postinstall" : "node scripts/postinstall.js"
+    }
+}

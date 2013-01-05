@@ -1,0 +1,5 @@
+# Ignore developer's folder.
+dev
+
+# Ignore c9 ide files.
+.c9revisions

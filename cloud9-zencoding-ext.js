@@ -1,7 +1,7 @@
 /*!
  * Zen Coding for the Cloud9 IDE
  *
- * @copyright 2012, Rubens Mariuzzo, Mariuzzo.com
+ * @copyright 2013, Rubens Mariuzzo, Mariuzzo.com
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
 
@@ -10,20 +10,19 @@ define(function(require, exports, module) {
     var ext = require('core/ext');
     var menus = require('ext/menus/menus');
     var commands = require('ext/commands/commands');
-    var zen_textarea = require('./vendors/zen_textarea.js');
 
     module.exports = ext.register('ext/cloud9-zencoding-ext/cloud9-zencoding-ext', {
 
-        // Extension Properties
+        // C9 Extension Properties
 
         name:    'Zen Coding Extension',
         dev:     'Rubens Mariuzzo',
         alone:   true,
         offline: false,
         type:    ext.GENERAL,
-        nodes: [],
+        nodes:   [],
 
-        // Extension Methods
+        // C9 Extension Methods
 
         init: function(amlNode) { },
 
@@ -58,8 +57,6 @@ define(function(require, exports, module) {
                     _self.expand(editor);
                 }
             });
-            
-            console.log(zen_textarea);
             
             ext.initExtension(this);
         },
