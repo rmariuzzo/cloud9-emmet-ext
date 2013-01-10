@@ -12,6 +12,7 @@ requirejs.config({
             exports : '_'
         },
         './vendors/emmet-core.js' : {
+            
             exports : 'emmet'
         }
     }
@@ -20,15 +21,17 @@ requirejs.config({
 // Zen Coding Cloud9 extension.
 define(function(require, exports, module) {
 
+    // Cloud9 dependencies.
     var ext = require('core/ext');
     var menus = require('ext/menus/menus');
+    var editors = require("ext/editors/editors");
     var commands = require('ext/commands/commands');
     
+    // Emmet dependencies.
     require('./vendors/underscore.js');
     require('./vendors/emmet-core.js');
     
-    console.log(emmet);
-    
+    // Cloud9 extension definition.
     module.exports = ext.register('ext/cloud9-zencoding-ext/cloud9-zencoding-ext', {
 
         // C9 Extension Properties
@@ -105,6 +108,20 @@ define(function(require, exports, module) {
         // Zen Coding Functions
 
         expand: function(editor) {
+            
+            if (!editor)
+                editors.currentEditor;
+
+            if (editor.amlEditor)
+                editor = editor.amlEditor.$editor;
+
+            var sel = editor.selection;
+            var session = editor.session;
+            var range = sel.getRange();
+
+            var line = session.getLine(range.start.row);
+            
+            editor.insert(line);
             
         }
 
