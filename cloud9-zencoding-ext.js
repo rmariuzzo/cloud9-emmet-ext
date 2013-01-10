@@ -5,12 +5,30 @@
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
 
+// RequireJS configuration for non AMD dependencies.
+requirejs.config({
+    shim: {
+        './vendors/underscore.js': {
+            exports : '_'
+        },
+        './vendors/emmet-core.js' : {
+            exports : 'emmet'
+        }
+    }
+});
+
+// Zen Coding Cloud9 extension.
 define(function(require, exports, module) {
 
     var ext = require('core/ext');
     var menus = require('ext/menus/menus');
     var commands = require('ext/commands/commands');
-
+    
+    require('./vendors/underscore.js');
+    require('./vendors/emmet-core.js');
+    
+    console.log(emmet);
+    
     module.exports = ext.register('ext/cloud9-zencoding-ext/cloud9-zencoding-ext', {
 
         // C9 Extension Properties
@@ -31,15 +49,13 @@ define(function(require, exports, module) {
             var _self = this;
             
             // Prepare the menu.
-
             this.nodes.push(menus.addItemByPath('Tools/Zen Coding/', new apf.menu(), 900));
             
             // Zen Coding > Expand Abbreviation
-            
             var mnuItemExpand = new apf.item({
                 command:'expand',
-                onclick: function(e) {
-                    
+                onclick: function(editor) {
+                    _self.expand(editor);
                 }
             });
 

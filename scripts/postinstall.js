@@ -1,5 +1,6 @@
 require('shelljs/global');
 var tmp = require('tmp');
+var fs  = require('fs');
 
 // Check prerequisites.
 if (!which('git')) {
@@ -17,11 +18,14 @@ else {
         }
         exec('git clone https://github.com/emmetio/emmet.git ' + path);
         cd(path);
-        exec('ant plugin.generic-full');
-        if (!test('-d', vendorsPath)) {
+        exec('ant plugin.generic');
+        if (test('-d', vendorsPath)) {
+            rm('-rf', vendorsPath + '/*');
+        } else {
             mkdir('-p', vendorsPath);
         }
-        cp('-f', path + '/dist/emmet-full.js', vendorsPath);
+        cp('-f', path + '/dist/emmet-core.js', vendorsPath);
+        cp('-f', path + '/javascript/underscore.js', vendorsPath);
         rm('-rf', path);
     });
 }
