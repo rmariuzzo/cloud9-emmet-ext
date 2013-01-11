@@ -1,5 +1,5 @@
 /*!
- * Zen Coding for the Cloud9 IDE
+ * Emmet for the Cloud9 IDE
  *
  * @copyright 2013, Rubens Mariuzzo, Mariuzzo.com
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
@@ -27,16 +27,12 @@ define(function(require, exports, module) {
     var editors = require("ext/editors/editors");
     var commands = require('ext/commands/commands');
     
-    // Emmet dependencies.
-    require('./vendors/underscore.js');
-    require('./vendors/emmet-core.js');
-    
     // Cloud9 extension definition.
-    module.exports = ext.register('ext/cloud9-zencoding-ext/cloud9-zencoding-ext', {
+    module.exports = ext.register('ext/cloud9-emmet-ext/cloud9-emmet-ext', {
 
         // C9 Extension Properties
 
-        name:    'Zen Coding Extension',
+        name:    'Emmet Extension',
         dev:     'Rubens Mariuzzo',
         alone:   true,
         offline: false,
@@ -45,16 +41,22 @@ define(function(require, exports, module) {
 
         // C9 Extension Methods
 
+        /**
+         * Initialize the extension.
+         */
         init: function(amlNode) { },
 
+        /**
+         * Hook the extension into the Cloud9 IDE.
+         */
         hook: function() {
             
             var _self = this;
             
             // Prepare the menu.
-            this.nodes.push(menus.addItemByPath('Tools/Zen Coding/', new apf.menu(), 900));
+            this.nodes.push(menus.addItemByPath('Tools/Emmet/', new apf.menu(), 900));
             
-            // Zen Coding > Expand Abbreviation
+            // Emmet > Expand Abbreviation
             var mnuItemExpand = new apf.item({
                 command:'expand',
                 onclick: function(editor) {
@@ -62,7 +64,7 @@ define(function(require, exports, module) {
                 }
             });
 
-            this.nodes.push(menus.addItemByPath('Tools/Zen Coding/Expand Abbreviation', mnuItemExpand, 910));
+            this.nodes.push(menus.addItemByPath('Tools/Emmet/Expand Abbreviation', mnuItemExpand, 910));
             
             commands.addCommand({
                 name: 'expand',
@@ -80,6 +82,9 @@ define(function(require, exports, module) {
             ext.initExtension(this);
         },
 
+        /**
+         * Enable the extension.
+         */
         enable: function() {
             this.nodes.each(function(item) {
                 item.enable();
@@ -87,6 +92,9 @@ define(function(require, exports, module) {
             this.disabled = false;
         },
 
+        /**
+         * Disable the extension.
+         */
         disable: function() {
             this.nodes.each(function(item) {
                 item.disable();
@@ -94,35 +102,18 @@ define(function(require, exports, module) {
             this.disabled = true;
         },
 
+        /**
+         * Destroy the extension depdendencies.
+         */
         destroy: function() {
             
             // Restore the menu.
-            menus.remove('Tools/Zen Coding');
+            menus.remove('Tools/Emmet');
             
             this.nodes.each(function(item) {
                 item.destroy(true, true);
             });
             this.nodes = [];
-        },
-
-        // Zen Coding Functions
-
-        expand: function(editor) {
-            
-            if (!editor)
-                editors.currentEditor;
-
-            if (editor.amlEditor)
-                editor = editor.amlEditor.$editor;
-
-            var sel = editor.selection;
-            var session = editor.session;
-            var range = sel.getRange();
-
-            var line = session.getLine(range.start.row);
-            
-            editor.insert(line);
-            
         }
 
     });
