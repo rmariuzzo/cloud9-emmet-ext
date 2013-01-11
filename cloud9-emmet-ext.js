@@ -9,76 +9,82 @@
 requirejs.config({
     shim: {
         './vendors/underscore.js': {
-            exports : '_'
+            exports: '_'
         },
-        './vendors/emmet-core.js' : {
-            
-            exports : 'emmet'
+        './vendors/emmet-core.js': {
+            exports: 'emmet'
+        },
+        './cloud9-editor-proxy.js': {
+            exports: 'editorProxy'
         }
     }
 });
 
-// Zen Coding Cloud9 extension.
+// Cloud9 Emmet extension.
 define(function(require, exports, module) {
 
-    // Cloud9 dependencies.
+    // Cloud9's dependencies.
     var ext = require('core/ext');
     var menus = require('ext/menus/menus');
     var editors = require("ext/editors/editors");
     var commands = require('ext/commands/commands');
-    
+
+    // Extension's dependencies.
+    require('./cloud9-editor-proxy.js');
+
     // Cloud9 extension definition.
     module.exports = ext.register('ext/cloud9-emmet-ext/cloud9-emmet-ext', {
 
         // C9 Extension Properties
 
-        name:    'Emmet Extension',
-        dev:     'Rubens Mariuzzo',
-        alone:   true,
+        name: 'Emmet Extension',
+        dev: 'Rubens Mariuzzo',
+        alone: true,
         offline: false,
-        type:    ext.GENERAL,
-        nodes:   [],
+        type: ext.GENERAL,
+        nodes: [],
 
         // C9 Extension Methods
 
         /**
          * Initialize the extension.
          */
-        init: function(amlNode) { },
+        init: function(amlNode) {},
 
         /**
          * Hook the extension into the Cloud9 IDE.
          */
         hook: function() {
-            
-            var _self = this;
-            
+
             // Prepare the menu.
             this.nodes.push(menus.addItemByPath('Tools/Emmet/', new apf.menu(), 900));
-            
+
             // Emmet > Expand Abbreviation
             var mnuItemExpand = new apf.item({
-                command:'expand',
+                command: 'expand',
                 onclick: function(editor) {
-                    _self.expand(editor);
+                    runEmmetAction('expand_abbreviation', editor);
                 }
             });
 
             this.nodes.push(menus.addItemByPath('Tools/Emmet/Expand Abbreviation', mnuItemExpand, 910));
-            
+
             commands.addCommand({
                 name: 'expand',
                 hint: 'expands CSS-like abbreviations into HTML/XML/CSS code, depending on current document’s syntax.',
                 msg: 'Expanding abbreviation.',
-                bindKey: {mac: 'Command-Shift-E', win: 'Shift-Ctrl-E'},
-                isAvailable : function(editor){
+                bindKey: {
+                    mac: 'Command-Shift-E',
+                    win: 'Shift-Ctrl-E'
+                },
+                isAvailable: function(editor) {
                     return true;
                 },
-                exec: function (editor) {
-                    _self.expand(editor);
+                exec: function(editor) {
+                    runEmmetAction('expand_abbreviation', editor);
                 }
             });
-            
+
             ext.initExtension(this);
         },
 
@@ -106,10 +112,10 @@ define(function(require, exports, module) {
          * Destroy the extension depdendencies.
          */
         destroy: function() {
-            
+
             // Restore the menu.
             menus.remove('Tools/Emmet');
-            
+
             this.nodes.each(function(item) {
                 item.destroy(true, true);
             });
@@ -117,5 +123,12 @@ define(function(require, exports, module) {
         }
 
     });
+
+    // Private functions //
+    //-------------------//
+
+    function runEmmetAction(name, editor) {
+        console.log(name, editor);
+    }
 
 });

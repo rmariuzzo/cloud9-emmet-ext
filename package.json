@@ -1,5 +1,5 @@
 {
-    "name" : "cloud9-zencoding-ext",
+    "name" : "cloud9-emmet-ext",
     "version" : "0.0.1",
     "devDependencies" : {
         "shelljs" : "latest",
