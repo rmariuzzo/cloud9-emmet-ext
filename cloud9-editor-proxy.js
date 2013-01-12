@@ -12,10 +12,10 @@ define(function(require, exports, module) {
 
     // IEmmetEditor.js proxy implementation.
     var editorProxy = {
-        
+
         // The current editor.
         editor: null,
-        
+
         // IEmmetEditor interface functions //
         //----------------------------------//
 
@@ -51,19 +51,17 @@ define(function(require, exports, module) {
          */
         createSelection: function(start, end) {
             var row = this.editor.getCursorPosition().row;
-            if (start === end)
-                this.editor.moveCursorTo(row, start);
-            else
-                this.editor.selection.setSelectionRange({
-                    start : {
-                        row: row,
-                        column: start
-                    },
-                    end : {
-                        row: row,
-                        column: end
-                    }
-                });
+            if (start === end) this.editor.moveCursorTo(row, start);
+            else this.editor.selection.setSelectionRange({
+                start: {
+                    row: row,
+                    column: start
+                },
+                end: {
+                    row: row,
+                    column: end
+                }
+            });
         },
 
         /**
@@ -75,10 +73,9 @@ define(function(require, exports, module) {
          * alert(range.start + ', ' + range.end);
          */
         getCurrentLineRange: function() {
-            var line = this.editor.session.getLine(this.editor.selection.getRange().start.row);
             return {
                 start: 0,
-                end: line.length
+                end: this.editor.session.getLine(this.editor.getCursorPosition().row).length
             };
         },
 
@@ -86,19 +83,25 @@ define(function(require, exports, module) {
          * Returns current caret position
          * @return {Number|null}
          */
-        getCaretPos: function() {},
+        getCaretPos: function() {
+            return this.editor.getCursorPosition().row;
+        },
 
         /**
          * Set new caret position
          * @param {Number} pos Caret position
          */
-        setCaretPos: function(pos) {},
+        setCaretPos: function(pos) {
+            this.editor.moveCursorTo(this.editor.getCursorPosition().row, pos);
+        },
 
         /**
          * Returns content of current line
          * @return {String}
          */
-        getCurrentLine: function() {},
+        getCurrentLine: function() {
+            return this.editor.session.getLine(this.editor.getCursorPosition().row).length;
+        },
 
         /**
          * Replace editor's content or it's part (from <code>start</code> to 
@@ -120,20 +123,38 @@ define(function(require, exports, module) {
          * @param {Number} [end] End index of editor's content
          * @param {Boolean} [no_indent] Do not auto indent <code>value</code>
          */
-        replaceContent: function(value, start, end, no_indent) {},
+        replaceContent: function(value, start, end, no_indent) {
+            if (typeof end === 'undefined') end = start || 0;
+            var row = this.editor.getCursorPosition().row;
+            this.editor.selection.setSelectionRange({
+                start: {
+                    row: row,
+                    column: start
+                },
+                end: {
+                    row: row,
+                    column: end
+                }
+            });
+            this.editor.insert(value);
+        },
 
         /**
          * Returns editor's content
          * @return {String}
          */
-        getContent: function() {},
+        getContent: function() {
+            return this.editor.getValue();
+        },
 
         /**
          * Returns current editor's syntax mode
          * @return {String}
          */
         getSyntax: function() {
-            return 'html';
+            var syntax = this.editor.session.syntax;
+            return
+            syntax === 'xhtml' ? 'xhtml' : syntax === 'html' ? 'html' : syntax === 'xml' ? 'xml' : 'plain';
         },
 
         /**
@@ -178,12 +199,12 @@ define(function(require, exports, module) {
         getFilePath: function() {
             return '';
         },
-        
+
         // Custom functions //
         //------------------//
-        
-        setEditor: function (editor) {
-            
+
+        setEditor: function(editor) {
+            this.editor = editor;
         }
 
     };
