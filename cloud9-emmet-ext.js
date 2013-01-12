@@ -1,5 +1,5 @@
 /*!
- * Emmet for the Cloud9 IDE
+ * Emmet for the Cloud9 IDE.
  *
  * @copyright 2013, Rubens Mariuzzo, Mariuzzo.com
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
@@ -12,9 +12,11 @@ requirejs.config({
             exports: '_'
         },
         './vendors/emmet-core.js': {
+            deps : ['_'],
             exports: 'emmet'
         },
         './cloud9-editor-proxy.js': {
+            deps: ['_', 'emmet'],
             exports: 'editorProxy'
         }
     }
@@ -30,7 +32,9 @@ define(function(require, exports, module) {
     var commands = require('ext/commands/commands');
 
     // Extension's dependencies.
-    require('./cloud9-editor-proxy.js');
+    require('./vendors/underscore.js');
+    require('./vendors/emmet-core.js');
+    var editorProxy = require('./cloud9-editor-proxy.js');
 
     // Cloud9 extension definition.
     module.exports = ext.register('ext/cloud9-emmet-ext/cloud9-emmet-ext', {
@@ -128,7 +132,23 @@ define(function(require, exports, module) {
     //-------------------//
 
     function runEmmetAction(name, editor) {
-        console.log(name, editor);
+
+        if (this.disabled === true)
+            return;
+        
+        // Set current editor.
+        if (!editor)
+            editor = editors.currentEditor;
+
+        if (editor.amlEditor)
+            editor = editor.amlEditor.$editor;
+
+        editorProxy.setEditor(editor);
+        
+        // Delegate emmet action.
+        try {
+            emmet.require('actions').run(name, editorProxy);
+        } catch (err) {}
     }
 
 });

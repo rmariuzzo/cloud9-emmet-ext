@@ -1,37 +1,23 @@
 /*!
- * Emmet for the Cloud9 IDE
+ * Emmet for the Cloud9 IDE.
  *
- * Cloud9 Editor Proxy for Emmet
+ * Cloud9 Editor Proxy for Emmet.
  *
  * @copyright 2013, Rubens Mariuzzo, Mariuzzo.com
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
- 
-// RequireJS configuration for non AMD dependencies.
-requirejs.config({
-    shim: {
-        './vendors/underscore.js': {
-            exports : '_'
-        },
-        './vendors/emmet-core.js' : {
-            
-            exports : 'emmet'
-        }
-    }
-});
 
 // Emmet Editor proxy implementation AMD definition.
 define(function(require, exports, module) {
 
-    // Cloud9 dependencies.
-    var editors = require("ext/editors/editors");
-    
-    // Emmet dependencies.
-    require('./vendors/underscore.js');
-    require('./vendors/emmet-core.js');
-
     // IEmmetEditor.js proxy implementation.
     var editorProxy = {
+        
+        // The current editor.
+        editor: null,
+        
+        // IEmmetEditor interface functions //
+        //----------------------------------//
 
         /**
          * Returns character indexes of selected text: object with <code>start</code>
@@ -44,9 +30,10 @@ define(function(require, exports, module) {
          * alert(selection.start + ', ' + selection.end); 
          */
         getSelectionRange: function() {
+            var range = this.editor.getSelection().getRange();
             return {
-                start: 0,
-                end: 0
+                start: range.start.column,
+                end: range.end.column
             };
         },
 
@@ -62,7 +49,22 @@ define(function(require, exports, module) {
          * //move caret to 15th character
          * editor.createSelection(15);
          */
-        createSelection: function(start, end) {},
+        createSelection: function(start, end) {
+            var row = this.editor.getCursorPosition().row;
+            if (start === end)
+                this.editor.moveCursorTo(row, start);
+            else
+                this.editor.selection.setSelectionRange({
+                    start : {
+                        row: row,
+                        column: start
+                    },
+                    end : {
+                        row: row,
+                        column: end
+                    }
+                });
+        },
 
         /**
          * Returns current line's start and end indexes as object with <code>start</code>
@@ -73,9 +75,10 @@ define(function(require, exports, module) {
          * alert(range.start + ', ' + range.end);
          */
         getCurrentLineRange: function() {
+            var line = this.editor.session.getLine(this.editor.selection.getRange().start.row);
             return {
                 start: 0,
-                end: 0
+                end: line.length
             };
         },
 
@@ -174,6 +177,13 @@ define(function(require, exports, module) {
          */
         getFilePath: function() {
             return '';
+        },
+        
+        // Custom functions //
+        //------------------//
+        
+        setEditor: function (editor) {
+            
         }
 
     };
