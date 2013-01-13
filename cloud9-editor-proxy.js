@@ -7,11 +7,34 @@
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
 
+// RequireJS configuration for non AMD dependencies.
+requirejs.config({
+    shim: {
+        './vendors/underscore.js': {
+            exports: '_'
+        },
+        './vendors/emmet-core.js': {
+            deps : ['_'],
+            exports: 'emmet'
+        }
+    }
+});
+
 // Emmet Editor proxy implementation AMD definition.
 define(function(require, exports, module) {
+    
+    // Extension's dependencies.
+    require('./vendors/underscore.js');
+    require('./vendors/emmet-core.js');
 
     // IEmmetEditor.js proxy implementation.
     var editorProxy = {
+        
+        syntaxMap: {
+            'css' : 'css',
+            'html' : 'html',
+            'xml' : 'xml'
+        },
 
         // The current editor.
         editor: null,
@@ -100,7 +123,7 @@ define(function(require, exports, module) {
          * @return {String}
          */
         getCurrentLine: function() {
-            return this.editor.session.getLine(this.editor.getCursorPosition().row).length;
+            return this.editor.session.getLine(this.editor.getCursorPosition().row);
         },
 
         /**
@@ -144,7 +167,7 @@ define(function(require, exports, module) {
          * @return {String}
          */
         getContent: function() {
-            return this.editor.getValue();
+            return this.getCurrentLine();
         },
 
         /**
@@ -153,8 +176,7 @@ define(function(require, exports, module) {
          */
         getSyntax: function() {
             var syntax = this.editor.session.syntax;
-            return
-            syntax === 'xhtml' ? 'xhtml' : syntax === 'html' ? 'html' : syntax === 'xml' ? 'xml' : 'plain';
+            return syntax in this.syntaxMap ? this.syntaxMap[syntax] : 'plain';
         },
 
         /**
@@ -169,7 +191,7 @@ define(function(require, exports, module) {
          * @return {String}
          */
         getProfileName: function() {
-            return 'xhtml';
+            return emmet.require('actionUtils').detectProfile(this);
         },
 
         /**
@@ -179,7 +201,7 @@ define(function(require, exports, module) {
          * @since 0.65
          */
         prompt: function(title) {
-            return '';
+            return prompt(title);
         },
 
         /**
@@ -188,7 +210,7 @@ define(function(require, exports, module) {
          * @since 0.65
          */
         getSelection: function() {
-            return '';
+            return this.editor.session.getTextRange(this.editor.selection.getRange());
         },
 
         /**
@@ -197,7 +219,7 @@ define(function(require, exports, module) {
          * @since 0.65 
          */
         getFilePath: function() {
-            return '';
+            return location.href;
         },
 
         // Custom functions //
