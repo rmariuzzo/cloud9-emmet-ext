@@ -98,7 +98,7 @@ define(function(require, exports, module) {
         getCurrentLineRange: function() {
             return {
                 start: 0,
-                end: this.editor.session.getLine(this.editor.getCursorPosition().row).length
+                end: this.getCurrentLine().length
             };
         },
 
