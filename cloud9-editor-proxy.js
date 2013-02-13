@@ -23,6 +23,9 @@ requirejs.config({
 // Emmet Editor proxy implementation AMD definition.
 define(function(require, exports, module) {
     
+    // ACE dependencies.
+    var Range = require('ace/range');
+    
     // Extension's dependencies.
     require('./vendors/underscore.js');
     require('./vendors/emmet-core.js');
@@ -147,8 +150,19 @@ define(function(require, exports, module) {
          * @param {Boolean} [no_indent] Do not auto indent <code>value</code>
          */
         replaceContent: function(value, start, end, no_indent) {
-            if (typeof end === 'undefined') end = start || 0;
+
+            end = end || start || 0;
             var row = this.editor.getCursorPosition().row;
+            
+            // Find new caret position.
+    		var tabstopData = emmet.require('tabStops').extract(value, {
+				escape: function(ch) {
+					return ch;
+				}
+			});
+            
+            value = tabstopData.text;
+            
             this.editor.selection.setSelectionRange({
                 start: {
                     row: row,
@@ -159,6 +173,7 @@ define(function(require, exports, module) {
                     column: end
                 }
             });
+            
             this.editor.insert(value);
         },
 
