@@ -1,3 +1,1062 @@
+//     Underscore.js 1.3.3
+//     (c) 2009-2012 Jeremy Ashkenas, DocumentCloud Inc.
+//     Underscore is freely distributable under the MIT license.
+//     Portions of Underscore are inspired or borrowed from Prototype,
+//     Oliver Steele's Functional, and John Resig's Micro-Templating.
+//     For all details and documentation:
+//     http://documentcloud.github.com/underscore
+
+var _ = (function() {
+
+  // Baseline setup
+  // --------------
+
+  // Establish the root object, `window` in the browser, or `global` on the server.
+  var root = this;
+
+  // Save the previous value of the `_` variable.
+  var previousUnderscore = root._;
+
+  // Establish the object that gets returned to break out of a loop iteration.
+  var breaker = {};
+
+  // Save bytes in the minified (but not gzipped) version:
+  var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
+
+  // Create quick reference variables for speed access to core prototypes.
+  var slice            = ArrayProto.slice,
+      unshift          = ArrayProto.unshift,
+      toString         = ObjProto.toString,
+      hasOwnProperty   = ObjProto.hasOwnProperty;
+
+  // All **ECMAScript 5** native function implementations that we hope to use
+  // are declared here.
+  var
+    nativeForEach      = ArrayProto.forEach,
+    nativeMap          = ArrayProto.map,
+    nativeReduce       = ArrayProto.reduce,
+    nativeReduceRight  = ArrayProto.reduceRight,
+    nativeFilter       = ArrayProto.filter,
+    nativeEvery        = ArrayProto.every,
+    nativeSome         = ArrayProto.some,
+    nativeIndexOf      = ArrayProto.indexOf,
+    nativeLastIndexOf  = ArrayProto.lastIndexOf,
+    nativeIsArray      = Array.isArray,
+    nativeKeys         = Object.keys,
+    nativeBind         = FuncProto.bind;
+
+  // Create a safe reference to the Underscore object for use below.
+  var _ = function(obj) { return new wrapper(obj); };
+
+  // Export the Underscore object for **Node.js**, with
+  // backwards-compatibility for the old `require()` API. If we're in
+  // the browser, add `_` as a global object via a string identifier,
+  // for Closure Compiler "advanced" mode.
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+      exports = module.exports = _;
+    }
+    exports._ = _;
+  } else {
+    root['_'] = _;
+  }
+
+  // Current version.
+  _.VERSION = '1.3.3';
+
+  // Collection Functions
+  // --------------------
+
+  // The cornerstone, an `each` implementation, aka `forEach`.
+  // Handles objects with the built-in `forEach`, arrays, and raw objects.
+  // Delegates to **ECMAScript 5**'s native `forEach` if available.
+  var each = _.each = _.forEach = function(obj, iterator, context) {
+    if (obj == null) return;
+    if (nativeForEach && obj.forEach === nativeForEach) {
+      obj.forEach(iterator, context);
+    } else if (obj.length === +obj.length) {
+      for (var i = 0, l = obj.length; i < l; i++) {
+        if (i in obj && iterator.call(context, obj[i], i, obj) === breaker) return;
+      }
+    } else {
+      for (var key in obj) {
+        if (_.has(obj, key)) {
+          if (iterator.call(context, obj[key], key, obj) === breaker) return;
+        }
+      }
+    }
+  };
+
+  // Return the results of applying the iterator to each element.
+  // Delegates to **ECMAScript 5**'s native `map` if available.
+  _.map = _.collect = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    if (nativeMap && obj.map === nativeMap) return obj.map(iterator, context);
+    each(obj, function(value, index, list) {
+      results[results.length] = iterator.call(context, value, index, list);
+    });
+    if (obj.length === +obj.length) results.length = obj.length;
+    return results;
+  };
+
+  // **Reduce** builds up a single result from a list of values, aka `inject`,
+  // or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
+  _.reduce = _.foldl = _.inject = function(obj, iterator, memo, context) {
+    var initial = arguments.length > 2;
+    if (obj == null) obj = [];
+    if (nativeReduce && obj.reduce === nativeReduce) {
+      if (context) iterator = _.bind(iterator, context);
+      return initial ? obj.reduce(iterator, memo) : obj.reduce(iterator);
+    }
+    each(obj, function(value, index, list) {
+      if (!initial) {
+        memo = value;
+        initial = true;
+      } else {
+        memo = iterator.call(context, memo, value, index, list);
+      }
+    });
+    if (!initial) throw new TypeError('Reduce of empty array with no initial value');
+    return memo;
+  };
+
+  // The right-associative version of reduce, also known as `foldr`.
+  // Delegates to **ECMAScript 5**'s native `reduceRight` if available.
+  _.reduceRight = _.foldr = function(obj, iterator, memo, context) {
+    var initial = arguments.length > 2;
+    if (obj == null) obj = [];
+    if (nativeReduceRight && obj.reduceRight === nativeReduceRight) {
+      if (context) iterator = _.bind(iterator, context);
+      return initial ? obj.reduceRight(iterator, memo) : obj.reduceRight(iterator);
+    }
+    var reversed = _.toArray(obj).reverse();
+    if (context && !initial) iterator = _.bind(iterator, context);
+    return initial ? _.reduce(reversed, iterator, memo, context) : _.reduce(reversed, iterator);
+  };
+
+  // Return the first value which passes a truth test. Aliased as `detect`.
+  _.find = _.detect = function(obj, iterator, context) {
+    var result;
+    any(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) {
+        result = value;
+        return true;
+      }
+    });
+    return result;
+  };
+
+  // Return all the elements that pass a truth test.
+  // Delegates to **ECMAScript 5**'s native `filter` if available.
+  // Aliased as `select`.
+  _.filter = _.select = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    if (nativeFilter && obj.filter === nativeFilter) return obj.filter(iterator, context);
+    each(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) results[results.length] = value;
+    });
+    return results;
+  };
+
+  // Return all the elements for which a truth test fails.
+  _.reject = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    each(obj, function(value, index, list) {
+      if (!iterator.call(context, value, index, list)) results[results.length] = value;
+    });
+    return results;
+  };
+
+  // Determine whether all of the elements match a truth test.
+  // Delegates to **ECMAScript 5**'s native `every` if available.
+  // Aliased as `all`.
+  _.every = _.all = function(obj, iterator, context) {
+    var result = true;
+    if (obj == null) return result;
+    if (nativeEvery && obj.every === nativeEvery) return obj.every(iterator, context);
+    each(obj, function(value, index, list) {
+      if (!(result = result && iterator.call(context, value, index, list))) return breaker;
+    });
+    return !!result;
+  };
+
+  // Determine if at least one element in the object matches a truth test.
+  // Delegates to **ECMAScript 5**'s native `some` if available.
+  // Aliased as `any`.
+  var any = _.some = _.any = function(obj, iterator, context) {
+    iterator || (iterator = _.identity);
+    var result = false;
+    if (obj == null) return result;
+    if (nativeSome && obj.some === nativeSome) return obj.some(iterator, context);
+    each(obj, function(value, index, list) {
+      if (result || (result = iterator.call(context, value, index, list))) return breaker;
+    });
+    return !!result;
+  };
+
+  // Determine if a given value is included in the array or object using `===`.
+  // Aliased as `contains`.
+  _.include = _.contains = function(obj, target) {
+    var found = false;
+    if (obj == null) return found;
+    if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
+    found = any(obj, function(value) {
+      return value === target;
+    });
+    return found;
+  };
+
+  // Invoke a method (with arguments) on every item in a collection.
+  _.invoke = function(obj, method) {
+    var args = slice.call(arguments, 2);
+    return _.map(obj, function(value) {
+      return (_.isFunction(method) ? method || value : value[method]).apply(value, args);
+    });
+  };
+
+  // Convenience version of a common use case of `map`: fetching a property.
+  _.pluck = function(obj, key) {
+    return _.map(obj, function(value){ return value[key]; });
+  };
+
+  // Return the maximum element or (element-based computation).
+  _.max = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj) && obj[0] === +obj[0]) return Math.max.apply(Math, obj);
+    if (!iterator && _.isEmpty(obj)) return -Infinity;
+    var result = {computed : -Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed >= result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Return the minimum element (or element-based computation).
+  _.min = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj) && obj[0] === +obj[0]) return Math.min.apply(Math, obj);
+    if (!iterator && _.isEmpty(obj)) return Infinity;
+    var result = {computed : Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed < result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Shuffle an array.
+  _.shuffle = function(obj) {
+    var shuffled = [], rand;
+    each(obj, function(value, index, list) {
+      rand = Math.floor(Math.random() * (index + 1));
+      shuffled[index] = shuffled[rand];
+      shuffled[rand] = value;
+    });
+    return shuffled;
+  };
+
+  // Sort the object's values by a criterion produced by an iterator.
+  _.sortBy = function(obj, val, context) {
+    var iterator = _.isFunction(val) ? val : function(obj) { return obj[val]; };
+    return _.pluck(_.map(obj, function(value, index, list) {
+      return {
+        value : value,
+        criteria : iterator.call(context, value, index, list)
+      };
+    }).sort(function(left, right) {
+      var a = left.criteria, b = right.criteria;
+      if (a === void 0) return 1;
+      if (b === void 0) return -1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    }), 'value');
+  };
+
+  // Groups the object's values by a criterion. Pass either a string attribute
+  // to group by, or a function that returns the criterion.
+  _.groupBy = function(obj, val) {
+    var result = {};
+    var iterator = _.isFunction(val) ? val : function(obj) { return obj[val]; };
+    each(obj, function(value, index) {
+      var key = iterator(value, index);
+      (result[key] || (result[key] = [])).push(value);
+    });
+    return result;
+  };
+
+  // Use a comparator function to figure out at what index an object should
+  // be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iterator) {
+    iterator || (iterator = _.identity);
+    var low = 0, high = array.length;
+    while (low < high) {
+      var mid = (low + high) >> 1;
+      iterator(array[mid]) < iterator(obj) ? low = mid + 1 : high = mid;
+    }
+    return low;
+  };
+
+  // Safely convert anything iterable into a real, live array.
+  _.toArray = function(obj) {
+    if (!obj)                                     return [];
+    if (_.isArray(obj))                           return slice.call(obj);
+    if (_.isArguments(obj))                       return slice.call(obj);
+    if (obj.toArray && _.isFunction(obj.toArray)) return obj.toArray();
+    return _.values(obj);
+  };
+
+  // Return the number of elements in an object.
+  _.size = function(obj) {
+    return _.isArray(obj) ? obj.length : _.keys(obj).length;
+  };
+
+  // Array Functions
+  // ---------------
+
+  // Get the first element of an array. Passing **n** will return the first N
+  // values in the array. Aliased as `head` and `take`. The **guard** check
+  // allows it to work with `_.map`.
+  _.first = _.head = _.take = function(array, n, guard) {
+    return (n != null) && !guard ? slice.call(array, 0, n) : array[0];
+  };
+
+  // Returns everything but the last entry of the array. Especcialy useful on
+  // the arguments object. Passing **n** will return all the values in
+  // the array, excluding the last N. The **guard** check allows it to work with
+  // `_.map`.
+  _.initial = function(array, n, guard) {
+    return slice.call(array, 0, array.length - ((n == null) || guard ? 1 : n));
+  };
+
+  // Get the last element of an array. Passing **n** will return the last N
+  // values in the array. The **guard** check allows it to work with `_.map`.
+  _.last = function(array, n, guard) {
+    if ((n != null) && !guard) {
+      return slice.call(array, Math.max(array.length - n, 0));
+    } else {
+      return array[array.length - 1];
+    }
+  };
+
+  // Returns everything but the first entry of the array. Aliased as `tail`.
+  // Especially useful on the arguments object. Passing an **index** will return
+  // the rest of the values in the array from that index onward. The **guard**
+  // check allows it to work with `_.map`.
+  _.rest = _.tail = function(array, index, guard) {
+    return slice.call(array, (index == null) || guard ? 1 : index);
+  };
+
+  // Trim out all falsy values from an array.
+  _.compact = function(array) {
+    return _.filter(array, function(value){ return !!value; });
+  };
+
+  // Return a completely flattened version of an array.
+  _.flatten = function(array, shallow) {
+    return _.reduce(array, function(memo, value) {
+      if (_.isArray(value)) return memo.concat(shallow ? value : _.flatten(value));
+      memo[memo.length] = value;
+      return memo;
+    }, []);
+  };
+
+  // Return a version of the array that does not contain the specified value(s).
+  _.without = function(array) {
+    return _.difference(array, slice.call(arguments, 1));
+  };
+
+  // Produce a duplicate-free version of the array. If the array has already
+  // been sorted, you have the option of using a faster algorithm.
+  // Aliased as `unique`.
+  _.uniq = _.unique = function(array, isSorted, iterator) {
+    var initial = iterator ? _.map(array, iterator) : array;
+    var results = [];
+    // The `isSorted` flag is irrelevant if the array only contains two elements.
+    if (array.length < 3) isSorted = true;
+    _.reduce(initial, function (memo, value, index) {
+      if (isSorted ? _.last(memo) !== value || !memo.length : !_.include(memo, value)) {
+        memo.push(value);
+        results.push(array[index]);
+      }
+      return memo;
+    }, []);
+    return results;
+  };
+
+  // Produce an array that contains the union: each distinct element from all of
+  // the passed-in arrays.
+  _.union = function() {
+    return _.uniq(_.flatten(arguments, true));
+  };
+
+  // Produce an array that contains every item shared between all the
+  // passed-in arrays. (Aliased as "intersect" for back-compat.)
+  _.intersection = _.intersect = function(array) {
+    var rest = slice.call(arguments, 1);
+    return _.filter(_.uniq(array), function(item) {
+      return _.every(rest, function(other) {
+        return _.indexOf(other, item) >= 0;
+      });
+    });
+  };
+
+  // Take the difference between one array and a number of other arrays.
+  // Only the elements present in just the first array will remain.
+  _.difference = function(array) {
+    var rest = _.flatten(slice.call(arguments, 1), true);
+    return _.filter(array, function(value){ return !_.include(rest, value); });
+  };
+
+  // Zip together multiple lists into a single array -- elements that share
+  // an index go together.
+  _.zip = function() {
+    var args = slice.call(arguments);
+    var length = _.max(_.pluck(args, 'length'));
+    var results = new Array(length);
+    for (var i = 0; i < length; i++) results[i] = _.pluck(args, "" + i);
+    return results;
+  };
+
+  // If the browser doesn't supply us with indexOf (I'm looking at you, **MSIE**),
+  // we need this function. Return the position of the first occurrence of an
+  // item in an array, or -1 if the item is not included in the array.
+  // Delegates to **ECMAScript 5**'s native `indexOf` if available.
+  // If the array is large and already in sort order, pass `true`
+  // for **isSorted** to use binary search.
+  _.indexOf = function(array, item, isSorted) {
+    if (array == null) return -1;
+    var i, l;
+    if (isSorted) {
+      i = _.sortedIndex(array, item);
+      return array[i] === item ? i : -1;
+    }
+    if (nativeIndexOf && array.indexOf === nativeIndexOf) return array.indexOf(item);
+    for (i = 0, l = array.length; i < l; i++) if (i in array && array[i] === item) return i;
+    return -1;
+  };
+
+  // Delegates to **ECMAScript 5**'s native `lastIndexOf` if available.
+  _.lastIndexOf = function(array, item) {
+    if (array == null) return -1;
+    if (nativeLastIndexOf && array.lastIndexOf === nativeLastIndexOf) return array.lastIndexOf(item);
+    var i = array.length;
+    while (i--) if (i in array && array[i] === item) return i;
+    return -1;
+  };
+
+  // Generate an integer Array containing an arithmetic progression. A port of
+  // the native Python `range()` function. See
+  // [the Python documentation](http://docs.python.org/library/functions.html#range).
+  _.range = function(start, stop, step) {
+    if (arguments.length <= 1) {
+      stop = start || 0;
+      start = 0;
+    }
+    step = arguments[2] || 1;
+
+    var len = Math.max(Math.ceil((stop - start) / step), 0);
+    var idx = 0;
+    var range = new Array(len);
+
+    while(idx < len) {
+      range[idx++] = start;
+      start += step;
+    }
+
+    return range;
+  };
+
+  // Function (ahem) Functions
+  // ------------------
+
+  // Reusable constructor function for prototype setting.
+  var ctor = function(){};
+
+  // Create a function bound to a given object (assigning `this`, and arguments,
+  // optionally). Binding with arguments is also known as `curry`.
+  // Delegates to **ECMAScript 5**'s native `Function.bind` if available.
+  // We check for `func.bind` first, to fail fast when `func` is undefined.
+  _.bind = function bind(func, context) {
+    var bound, args;
+    if (func.bind === nativeBind && nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+    if (!_.isFunction(func)) throw new TypeError;
+    args = slice.call(arguments, 2);
+    return bound = function() {
+      if (!(this instanceof bound)) return func.apply(context, args.concat(slice.call(arguments)));
+      ctor.prototype = func.prototype;
+      var self = new ctor;
+      var result = func.apply(self, args.concat(slice.call(arguments)));
+      if (Object(result) === result) return result;
+      return self;
+    };
+  };
+
+  // Bind all of an object's methods to that object. Useful for ensuring that
+  // all callbacks defined on an object belong to it.
+  _.bindAll = function(obj) {
+    var funcs = slice.call(arguments, 1);
+    if (funcs.length == 0) funcs = _.functions(obj);
+    each(funcs, function(f) { obj[f] = _.bind(obj[f], obj); });
+    return obj;
+  };
+
+  // Memoize an expensive function by storing its results.
+  _.memoize = function(func, hasher) {
+    var memo = {};
+    hasher || (hasher = _.identity);
+    return function() {
+      var key = hasher.apply(this, arguments);
+      return _.has(memo, key) ? memo[key] : (memo[key] = func.apply(this, arguments));
+    };
+  };
+
+  // Delays a function for the given number of milliseconds, and then calls
+  // it with the arguments supplied.
+  _.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function(){ return func.apply(null, args); }, wait);
+  };
+
+  // Defers a function, scheduling it to run after the current call stack has
+  // cleared.
+  _.defer = function(func) {
+    return _.delay.apply(_, [func, 1].concat(slice.call(arguments, 1)));
+  };
+
+  // Returns a function, that, when invoked, will only be triggered at most once
+  // during a given window of time.
+  _.throttle = function(func, wait) {
+    var context, args, timeout, throttling, more, result;
+    var whenDone = _.debounce(function(){ more = throttling = false; }, wait);
+    return function() {
+      context = this; args = arguments;
+      var later = function() {
+        timeout = null;
+        if (more) func.apply(context, args);
+        whenDone();
+      };
+      if (!timeout) timeout = setTimeout(later, wait);
+      if (throttling) {
+        more = true;
+      } else {
+        result = func.apply(context, args);
+      }
+      whenDone();
+      throttling = true;
+      return result;
+    };
+  };
+
+  // Returns a function, that, as long as it continues to be invoked, will not
+  // be triggered. The function will be called after it stops being called for
+  // N milliseconds. If `immediate` is passed, trigger the function on the
+  // leading edge, instead of the trailing.
+  _.debounce = function(func, wait, immediate) {
+    var timeout;
+    return function() {
+      var context = this, args = arguments;
+      var later = function() {
+        timeout = null;
+        if (!immediate) func.apply(context, args);
+      };
+      if (immediate && !timeout) func.apply(context, args);
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  };
+
+  // Returns a function that will be executed at most one time, no matter how
+  // often you call it. Useful for lazy initialization.
+  _.once = function(func) {
+    var ran = false, memo;
+    return function() {
+      if (ran) return memo;
+      ran = true;
+      return memo = func.apply(this, arguments);
+    };
+  };
+
+  // Returns the first function passed as an argument to the second,
+  // allowing you to adjust arguments, run code before and after, and
+  // conditionally execute the original function.
+  _.wrap = function(func, wrapper) {
+    return function() {
+      var args = [func].concat(slice.call(arguments, 0));
+      return wrapper.apply(this, args);
+    };
+  };
+
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var funcs = arguments;
+    return function() {
+      var args = arguments;
+      for (var i = funcs.length - 1; i >= 0; i--) {
+        args = [funcs[i].apply(this, args)];
+      }
+      return args[0];
+    };
+  };
+
+  // Returns a function that will only be executed after being called N times.
+  _.after = function(times, func) {
+    if (times <= 0) return func();
+    return function() {
+      if (--times < 1) { return func.apply(this, arguments); }
+    };
+  };
+
+  // Object Functions
+  // ----------------
+
+  // Retrieve the names of an object's properties.
+  // Delegates to **ECMAScript 5**'s native `Object.keys`
+  _.keys = nativeKeys || function(obj) {
+    if (obj !== Object(obj)) throw new TypeError('Invalid object');
+    var keys = [];
+    for (var key in obj) if (_.has(obj, key)) keys[keys.length] = key;
+    return keys;
+  };
+
+  // Retrieve the values of an object's properties.
+  _.values = function(obj) {
+    return _.map(obj, _.identity);
+  };
+
+  // Return a sorted list of the function names available on the object.
+  // Aliased as `methods`
+  _.functions = _.methods = function(obj) {
+    var names = [];
+    for (var key in obj) {
+      if (_.isFunction(obj[key])) names.push(key);
+    }
+    return names.sort();
+  };
+
+  // Extend a given object with all the properties in passed-in object(s).
+  _.extend = function(obj) {
+    each(slice.call(arguments, 1), function(source) {
+      for (var prop in source) {
+        obj[prop] = source[prop];
+      }
+    });
+    return obj;
+  };
+
+  // Return a copy of the object only containing the whitelisted properties.
+  _.pick = function(obj) {
+    var result = {};
+    each(_.flatten(slice.call(arguments, 1)), function(key) {
+      if (key in obj) result[key] = obj[key];
+    });
+    return result;
+  };
+
+  // Fill in a given object with default properties.
+  _.defaults = function(obj) {
+    each(slice.call(arguments, 1), function(source) {
+      for (var prop in source) {
+        if (obj[prop] == null) obj[prop] = source[prop];
+      }
+    });
+    return obj;
+  };
+
+  // Create a (shallow-cloned) duplicate of an object.
+  _.clone = function(obj) {
+    if (!_.isObject(obj)) return obj;
+    return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
+  };
+
+  // Invokes interceptor with the obj, and then returns obj.
+  // The primary purpose of this method is to "tap into" a method chain, in
+  // order to perform operations on intermediate results within the chain.
+  _.tap = function(obj, interceptor) {
+    interceptor(obj);
+    return obj;
+  };
+
+  // Internal recursive comparison function.
+  function eq(a, b, stack) {
+    // Identical objects are equal. `0 === -0`, but they aren't identical.
+    // See the Harmony `egal` proposal: http://wiki.ecmascript.org/doku.php?id=harmony:egal.
+    if (a === b) return a !== 0 || 1 / a == 1 / b;
+    // A strict comparison is necessary because `null == undefined`.
+    if (a == null || b == null) return a === b;
+    // Unwrap any wrapped objects.
+    if (a._chain) a = a._wrapped;
+    if (b._chain) b = b._wrapped;
+    // Invoke a custom `isEqual` method if one is provided.
+    if (a.isEqual && _.isFunction(a.isEqual)) return a.isEqual(b);
+    if (b.isEqual && _.isFunction(b.isEqual)) return b.isEqual(a);
+    // Compare `[[Class]]` names.
+    var className = toString.call(a);
+    if (className != toString.call(b)) return false;
+    switch (className) {
+      // Strings, numbers, dates, and booleans are compared by value.
+      case '[object String]':
+        // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+        // equivalent to `new String("5")`.
+        return a == String(b);
+      case '[object Number]':
+        // `NaN`s are equivalent, but non-reflexive. An `egal` comparison is performed for
+        // other numeric values.
+        return a != +a ? b != +b : (a == 0 ? 1 / a == 1 / b : a == +b);
+      case '[object Date]':
+      case '[object Boolean]':
+        // Coerce dates and booleans to numeric primitive values. Dates are compared by their
+        // millisecond representations. Note that invalid dates with millisecond representations
+        // of `NaN` are not equivalent.
+        return +a == +b;
+      // RegExps are compared by their source patterns and flags.
+      case '[object RegExp]':
+        return a.source == b.source &&
+               a.global == b.global &&
+               a.multiline == b.multiline &&
+               a.ignoreCase == b.ignoreCase;
+    }
+    if (typeof a != 'object' || typeof b != 'object') return false;
+    // Assume equality for cyclic structures. The algorithm for detecting cyclic
+    // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+    var length = stack.length;
+    while (length--) {
+      // Linear search. Performance is inversely proportional to the number of
+      // unique nested structures.
+      if (stack[length] == a) return true;
+    }
+    // Add the first object to the stack of traversed objects.
+    stack.push(a);
+    var size = 0, result = true;
+    // Recursively compare objects and arrays.
+    if (className == '[object Array]') {
+      // Compare array lengths to determine if a deep comparison is necessary.
+      size = a.length;
+      result = size == b.length;
+      if (result) {
+        // Deep compare the contents, ignoring non-numeric properties.
+        while (size--) {
+          // Ensure commutative equality for sparse arrays.
+          if (!(result = size in a == size in b && eq(a[size], b[size], stack))) break;
+        }
+      }
+    } else {
+      // Objects with different constructors are not equivalent.
+      if ('constructor' in a != 'constructor' in b || a.constructor != b.constructor) return false;
+      // Deep compare objects.
+      for (var key in a) {
+        if (_.has(a, key)) {
+          // Count the expected number of properties.
+          size++;
+          // Deep compare each member.
+          if (!(result = _.has(b, key) && eq(a[key], b[key], stack))) break;
+        }
+      }
+      // Ensure that both objects contain the same number of properties.
+      if (result) {
+        for (key in b) {
+          if (_.has(b, key) && !(size--)) break;
+        }
+        result = !size;
+      }
+    }
+    // Remove the first object from the stack of traversed objects.
+    stack.pop();
+    return result;
+  }
+
+  // Perform a deep comparison to check if two objects are equal.
+  _.isEqual = function(a, b) {
+    return eq(a, b, []);
+  };
+
+  // Is a given array, string, or object empty?
+  // An "empty" object has no enumerable own-properties.
+  _.isEmpty = function(obj) {
+    if (obj == null) return true;
+    if (_.isArray(obj) || _.isString(obj)) return obj.length === 0;
+    for (var key in obj) if (_.has(obj, key)) return false;
+    return true;
+  };
+
+  // Is a given value a DOM element?
+  _.isElement = function(obj) {
+    return !!(obj && obj.nodeType == 1);
+  };
+
+  // Is a given value an array?
+  // Delegates to ECMA5's native Array.isArray
+  _.isArray = nativeIsArray || function(obj) {
+    return toString.call(obj) == '[object Array]';
+  };
+
+  // Is a given variable an object?
+  _.isObject = function(obj) {
+    return obj === Object(obj);
+  };
+
+  // Is a given variable an arguments object?
+  _.isArguments = function(obj) {
+    return toString.call(obj) == '[object Arguments]';
+  };
+  if (!_.isArguments(arguments)) {
+    _.isArguments = function(obj) {
+      return !!(obj && _.has(obj, 'callee'));
+    };
+  }
+
+  // Is a given value a function?
+  _.isFunction = function(obj) {
+    return toString.call(obj) == '[object Function]';
+  };
+
+  // Is a given value a string?
+  _.isString = function(obj) {
+    return toString.call(obj) == '[object String]';
+  };
+
+  // Is a given value a number?
+  _.isNumber = function(obj) {
+    return toString.call(obj) == '[object Number]';
+  };
+
+  // Is a given object a finite number?
+  _.isFinite = function(obj) {
+    return _.isNumber(obj) && isFinite(obj);
+  };
+
+  // Is the given value `NaN`?
+  _.isNaN = function(obj) {
+    // `NaN` is the only value for which `===` is not reflexive.
+    return obj !== obj;
+  };
+
+  // Is a given value a boolean?
+  _.isBoolean = function(obj) {
+    return obj === true || obj === false || toString.call(obj) == '[object Boolean]';
+  };
+
+  // Is a given value a date?
+  _.isDate = function(obj) {
+    return toString.call(obj) == '[object Date]';
+  };
+
+  // Is the given value a regular expression?
+  _.isRegExp = function(obj) {
+    return toString.call(obj) == '[object RegExp]';
+  };
+
+  // Is a given value equal to null?
+  _.isNull = function(obj) {
+    return obj === null;
+  };
+
+  // Is a given variable undefined?
+  _.isUndefined = function(obj) {
+    return obj === void 0;
+  };
+
+  // Has own property?
+  _.has = function(obj, key) {
+    return hasOwnProperty.call(obj, key);
+  };
+
+  // Utility Functions
+  // -----------------
+
+  // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
+  // previous owner. Returns a reference to the Underscore object.
+  _.noConflict = function() {
+    root._ = previousUnderscore;
+    return this;
+  };
+
+  // Keep the identity function around for default iterators.
+  _.identity = function(value) {
+    return value;
+  };
+
+  // Run a function **n** times.
+  _.times = function (n, iterator, context) {
+    for (var i = 0; i < n; i++) iterator.call(context, i);
+  };
+
+  // Escape a string for HTML interpolation.
+  _.escape = function(string) {
+    return (''+string).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;').replace(/\//g,'&#x2F;');
+  };
+
+  // If the value of the named property is a function then invoke it;
+  // otherwise, return it.
+  _.result = function(object, property) {
+    if (object == null) return null;
+    var value = object[property];
+    return _.isFunction(value) ? value.call(object) : value;
+  };
+
+  // Add your own custom functions to the Underscore object, ensuring that
+  // they're correctly added to the OOP wrapper as well.
+  _.mixin = function(obj) {
+    each(_.functions(obj), function(name){
+      addToWrapper(name, _[name] = obj[name]);
+    });
+  };
+
+  // Generate a unique integer id (unique within the entire client session).
+  // Useful for temporary DOM ids.
+  var idCounter = 0;
+  _.uniqueId = function(prefix) {
+    var id = idCounter++;
+    return prefix ? prefix + id : id;
+  };
+
+  // By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  _.templateSettings = {
+    evaluate    : /<%([\s\S]+?)%>/g,
+    interpolate : /<%=([\s\S]+?)%>/g,
+    escape      : /<%-([\s\S]+?)%>/g
+  };
+
+  // When customizing `templateSettings`, if you don't want to define an
+  // interpolation, evaluation or escaping regex, we need one that is
+  // guaranteed not to match.
+  var noMatch = /.^/;
+
+  // Certain characters need to be escaped so that they can be put into a
+  // string literal.
+  var escapes = {
+    '\\': '\\',
+    "'": "'",
+    'r': '\r',
+    'n': '\n',
+    't': '\t',
+    'u2028': '\u2028',
+    'u2029': '\u2029'
+  };
+
+  for (var p in escapes) escapes[escapes[p]] = p;
+  var escaper = /\\|'|\r|\n|\t|\u2028|\u2029/g;
+  var unescaper = /\\(\\|'|r|n|t|u2028|u2029)/g;
+
+  // Within an interpolation, evaluation, or escaping, remove HTML escaping
+  // that had been previously added.
+  var unescape = function(code) {
+    return code.replace(unescaper, function(match, escape) {
+      return escapes[escape];
+    });
+  };
+
+  // JavaScript micro-templating, similar to John Resig's implementation.
+  // Underscore templating handles arbitrary delimiters, preserves whitespace,
+  // and correctly escapes quotes within interpolated code.
+  _.template = function(text, data, settings) {
+    settings = _.defaults(settings || {}, _.templateSettings);
+
+    // Compile the template source, taking care to escape characters that
+    // cannot be included in a string literal and then unescape them in code
+    // blocks.
+    var source = "__p+='" + text
+      .replace(escaper, function(match) {
+        return '\\' + escapes[match];
+      })
+      .replace(settings.escape || noMatch, function(match, code) {
+        return "'+\n_.escape(" + unescape(code) + ")+\n'";
+      })
+      .replace(settings.interpolate || noMatch, function(match, code) {
+        return "'+\n(" + unescape(code) + ")+\n'";
+      })
+      .replace(settings.evaluate || noMatch, function(match, code) {
+        return "';\n" + unescape(code) + "\n;__p+='";
+      }) + "';\n";
+
+    // If a variable is not specified, place data values in local scope.
+    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+
+    source = "var __p='';" +
+      "var print=function(){__p+=Array.prototype.join.call(arguments, '')};\n" +
+      source + "return __p;\n";
+
+    var render = new Function(settings.variable || 'obj', '_', source);
+    if (data) return render(data, _);
+    var template = function(data) {
+      return render.call(this, data, _);
+    };
+
+    // Provide the compiled function source as a convenience for build time
+    // precompilation.
+    template.source = 'function(' + (settings.variable || 'obj') + '){\n' +
+      source + '}';
+
+    return template;
+  };
+
+  // Add a "chain" function, which will delegate to the wrapper.
+  _.chain = function(obj) {
+    return _(obj).chain();
+  };
+
+  // The OOP Wrapper
+  // ---------------
+
+  // If Underscore is called as a function, it returns a wrapped object that
+  // can be used OO-style. This wrapper holds altered versions of all the
+  // underscore functions. Wrapped objects may be chained.
+  var wrapper = function(obj) { this._wrapped = obj; };
+
+  // Expose `wrapper.prototype` as `_.prototype`
+  _.prototype = wrapper.prototype;
+
+  // Helper function to continue chaining intermediate results.
+  var result = function(obj, chain) {
+    return chain ? _(obj).chain() : obj;
+  };
+
+  // A method to easily add functions to the OOP wrapper.
+  var addToWrapper = function(name, func) {
+    wrapper.prototype[name] = function() {
+      var args = slice.call(arguments);
+      unshift.call(args, this._wrapped);
+      return result(func.apply(_, args), this._chain);
+    };
+  };
+
+  // Add all of the Underscore functions to the wrapper object.
+  _.mixin(_);
+
+  // Add all mutator Array functions to the wrapper.
+  each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    var method = ArrayProto[name];
+    wrapper.prototype[name] = function() {
+      var wrapped = this._wrapped;
+      method.apply(wrapped, arguments);
+      var length = wrapped.length;
+      if ((name == 'shift' || name == 'splice') && length === 0) delete wrapped[0];
+      return result(wrapped, this._chain);
+    };
+  });
+
+  // Add all accessor Array functions to the wrapper.
+  each(['concat', 'join', 'slice'], function(name) {
+    var method = ArrayProto[name];
+    wrapper.prototype[name] = function() {
+      return result(method.apply(this._wrapped, arguments), this._chain);
+    };
+  });
+
+  // Start chaining a wrapped Underscore object.
+  wrapper.prototype.chain = function() {
+    this._chain = true;
+    return this;
+  };
+
+  // Extracts the result from a wrapped and chained object.
+  wrapper.prototype.value = function() {
+    return this._wrapped;
+  };
+  return _;
+}).call({});
 /**
  * Core Emmet object, available in global scope
  */
@@ -218,6 +1277,11 @@ if (typeof exports !== 'undefined') {
 		exports = module.exports = emmet;
 	}
 	exports.emmet = emmet;
+}
+
+// export as Require.js module
+if (typeof define !== 'undefined') {
+	define(emmet);
 }/**
  * Emmet abbreviation parser.
  * Takes string abbreviation and recursively parses it into a tree. The parsed 
@@ -240,7 +1304,7 @@ if (typeof exports !== 'undefined') {
  */
 emmet.define('abbreviationParser', function(require, _) {
 	var reValidName = /^[\w\-\$\:@\!%]+\+?$/i;
-	var reWord = /[\w\-:\$]/;
+	var reWord = /[\w\-:\$@]/;
 	
 	var pairs = {
 		'[': ']',
@@ -369,6 +1433,8 @@ emmet.define('abbreviationParser', function(require, _) {
 			_.each(this.children, function(child) {
 				child.updateProperty(name, value);
 			});
+			
+			return this;
 		},
 		
 		/**
@@ -967,16 +2033,18 @@ emmet.define('abbreviationParser', function(require, _) {
 	 * @returns {AbbreviationNode}
 	 */
 	function unroll(node) {
-		for (var i = node.children.length - 1, j, child; i >= 0; i--) {
+		for (var i = node.children.length - 1, j, child, maxCount; i >= 0; i--) {
 			child = node.children[i];
 			
 			if (child.isRepeating()) {
-				j = child.repeatCount;
+				maxCount = j = child.repeatCount;
 				child.repeatCount = 1;
 				child.updateProperty('counter', 1);
+				child.updateProperty('maxCount', maxCount);
 				while (--j > 0) {
 					child.parent.addChild(child.clone(), i + 1)
-						.updateProperty('counter', j + 1);
+						.updateProperty('counter', j + 1)
+						.updateProperty('maxCount', maxCount);
 				}
 			}
 		}
@@ -1021,7 +2089,7 @@ emmet.define('abbreviationParser', function(require, _) {
 	
 	// XXX add counter replacer function as output processor
 	outputProcessors.push(function(text, node) {
-		return require('utils').replaceCounter(text, node.counter);
+		return require('utils').replaceCounter(text, node.counter, node.maxCount);
 	});
 	
 	return {
@@ -2448,6 +3516,23 @@ emmet.define('utils', function(require, _) {
 		},
 		
 		/**
+		 * Returns list of paddings that should be used to align passed string
+		 * @param {Array} strings
+		 * @returns {Array}
+		 */
+		getStringsPads: function(strings) {
+			var lengths = _.map(strings, function(s) {
+				return _.isString(s) ? s.length : +s;
+			});
+			
+			var max = _.max(lengths);
+			return _.map(lengths, function(l) {
+				var pad = max - l;
+				return pad ? this.repeatString(' ', pad) : '';
+			}, this);
+		},
+		
+		/**
 		 * Indents text with padding
 		 * @param {String} text Text to indent
 		 * @param {String} pad Padding size (number) or padding itself (string)
@@ -2582,16 +3667,22 @@ emmet.define('utils', function(require, _) {
 		
 		/**
 		 * Replaces '$' character in string assuming it might be escaped with '\'
-		 * @param {String} str String where caracter should be replaced
-		 * @param {String} value Replace value. Might be a <code>Function</code>
+		 * @param {String} str String where character should be replaced
+		 * @param {String} value New value
 		 * @return {String}
 		 */
-		replaceCounter: function(str, value) {
+		replaceCounter: function(str, value, total) {
 			var symbol = '$';
 			// in case we received strings from Java, convert the to native strings
 			str = String(str);
 			value = String(value);
+			
+			if (/^\-?\d+$/.test(value)) {
+				value = +value;
+			}
+			
 			var that = this;
+			
 			return this.replaceUnescapedSymbol(str, symbol, function(str, symbol, pos, matchNum){
 				if (str.charAt(pos + 1) == '{' || that.isNumeric(str.charAt(pos + 1)) ) {
 					// it's a variable, skip it
@@ -2601,7 +3692,27 @@ emmet.define('utils', function(require, _) {
 				// replace sequense of $ symbols with padded number  
 				var j = pos + 1;
 				while(str.charAt(j) == '$' && str.charAt(j + 1) != '{') j++;
-				return [str.substring(pos, j), that.zeroPadString(value, j - pos)];
+				var pad = j - pos;
+				
+				// get counter base
+				var base = 0, decrement = false, m;
+				if (m = str.substr(j).match(/^@(\-?)(\d*)/)) {
+					j += m[0].length;
+					
+					if (m[1]) {
+						decrement = true;
+					}
+					
+					base = parseInt(m[2] || 1) - 1;
+				}
+				
+				if (decrement && total && _.isNumber(value)) {
+					value = total - value + 1;
+				}
+				
+				value += base;
+				
+				return [str.substring(pos, j), that.zeroPadString(value + '', pad)];
 			});
 		},
 		
@@ -4932,9 +6043,14 @@ emmet.define('htmlMatcher', function(require, _) {
 			for (var i = pos; i >= 0; i--) {
 				if (open = matcher.open(i)) {
 					// found opening tag
-					if (open.selfClose && open.range.cmp(pos, 'lt', 'gt')) {
-						// inside self-closing tag
-						break;
+					if (open.selfClose) {
+						if (open.range.cmp(pos, 'lt', 'gt')) {
+							// inside self-closing tag, found match
+							break;
+						}
+						
+						// outside self-closing tag, continue
+						continue;
 					}
 					
 					close = findClosingPair(open, matcher);
@@ -8733,15 +9849,23 @@ emmet.exec(function(require, _) {
 			throw "Can't find " + imgPath + ' file';
 		}
 		
-		var b64 = require('base64').encode(String(file.read(realImgPath)));
-		if (!b64) {
-			throw "Can't encode file content to base64";
-		}
-		
-		b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
-			';base64,' + b64;
+		file.read(realImgPath, function(err, content) {
+			if (err) {
+				throw 'Unable to read ' + realImgPath + ': ' + err;
+			}
 			
-		editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
+			var b64 = require('base64').encode(String(content));
+			if (!b64) {
+				throw "Can't encode file content to base64";
+			}
+			
+			b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
+				';base64,' + b64;
+				
+			editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
+		});
+		
+		
 		return true;
 	}
 
@@ -8788,21 +9912,19 @@ emmet.exec(function(require, _) {
 		var info = require('editorUtils').outputInfo(editor);
 		var xmlElem = require('xmlEditTree').parseFromPosition(info.content, offset, true);
 		if (xmlElem && (xmlElem.name() || '').toLowerCase() == 'img') {
-			
-			var size = getImageSizeForSource(editor, xmlElem.value('src'));
-			if (size) {
-				var compoundData = xmlElem.range(true);
-				xmlElem.value('width', size.width);
-				xmlElem.value('height', size.height, xmlElem.indexOf('width') + 1);
-				
-				return _.extend(compoundData, {
-					data: xmlElem.toString(),
-					caret: offset
-				});
-			}
+			getImageSizeForSource(editor, xmlElem.value('src'), function(size) {
+				if (size) {
+					var compoundData = xmlElem.range(true);
+					xmlElem.value('width', size.width);
+					xmlElem.value('height', size.height, xmlElem.indexOf('width') + 1);
+					
+					require('actionUtils').compoundUpdate(editor, _.extend(compoundData, {
+						data: xmlElem.toString(),
+						caret: offset
+					}));
+				}
+			});
 		}
-		
-		return null;
 	}
 	
 	/**
@@ -8819,21 +9941,20 @@ emmet.exec(function(require, _) {
 			// check if there is property with image under caret
 			var prop = cssRule.itemFromPosition(offset, true), m;
 			if (prop && (m = /url\((["']?)(.+?)\1\)/i.exec(prop.value() || ''))) {
-				var size = getImageSizeForSource(editor, m[2]);
-				if (size) {
-					var compoundData = cssRule.range(true);
-					cssRule.value('width', size.width + 'px');
-					cssRule.value('height', size.height + 'px', cssRule.indexOf('width') + 1);
-					
-					return _.extend(compoundData, {
-						data: cssRule.toString(),
-						caret: offset
-					});
-				}
+				getImageSizeForSource(editor, m[2], function(size) {
+					if (size) {
+						var compoundData = cssRule.range(true);
+						cssRule.value('width', size.width + 'px');
+						cssRule.value('height', size.height + 'px', cssRule.indexOf('width') + 1);
+						
+						require('actionUtils').compoundUpdate(editor, _.extend(compoundData, {
+							data: cssRule.toString(),
+							caret: offset
+						}));
+					}
+				});
 			}
 		}
-		
-		return null;
 	}
 	
 	/**
@@ -8841,37 +9962,43 @@ emmet.exec(function(require, _) {
 	 * @param {IEmmetEditor} editor
 	 * @param {String} src Image source (path or data:url)
 	 */
-	function getImageSizeForSource(editor, src) {
+	function getImageSizeForSource(editor, src, callback) {
 		var fileContent;
+		var au = require('actionUtils');
 		if (src) {
 			// check if it is data:url
 			if (/^data:/.test(src)) {
 				fileContent = require('base64').decode( src.replace(/^data\:.+?;.+?,/, '') );
-			} else {
-				var file = require('file');
-				var absPath = file.locateFile(editor.getFilePath(), src);
-				if (absPath === null) {
-					throw "Can't find " + src + ' file';
-				}
-				
-				fileContent = String(file.read(absPath));
+				return callback(au.getImageSize(fileContent));
 			}
 			
-			return require('actionUtils').getImageSize(fileContent);
+			var file = require('file');
+			var absPath = file.locateFile(editor.getFilePath(), src);
+			if (absPath === null) {
+				throw "Can't find " + src + ' file';
+			}
+			
+			file.read(absPath, 500, function(err, content) {
+				if (err) {
+					throw 'Unable to read ' + absPath + ': ' + err;
+				}
+				
+				content = String(content);
+				callback(au.getImageSize(content));
+			});
 		}
 	}
 	
 	require('actions').add('update_image_size', function(editor) {
-		var result;
 		// this action will definitely won’t work in SASS dialect,
 		// but may work in SCSS or LESS
 		if (_.include(['css', 'less', 'scss'], String(editor.getSyntax()))) {
-			result = updateImageSizeCSS(editor);
+			updateImageSizeCSS(editor);
 		} else {
-			result = updateImageSizeHTML(editor);
+			updateImageSizeHTML(editor);
 		}
 		
-		return require('actionUtils').compoundUpdate(editor, result);
+		return true;
 	});
 });/**
  * Resolver for fast CSS typing. Handles abbreviations with the following 
@@ -9035,7 +10162,7 @@ emmet.define('cssResolver', function(require, _) {
 	prefs.define('css.keywords', 'auto, inherit', 
 			'A comma-separated list of valid keywords that can be used in CSS abbreviations.');
 	
-	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted', 
+	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted, t:transparent', 
 			'A comma-separated list of keyword aliases, used in CSS abbreviation. '
 			+ 'Each alias should be defined as <code>alias:keyword_name</code>.');
 	
@@ -9065,6 +10192,10 @@ emmet.define('cssResolver', function(require, _) {
 			'The minium score (from 0 to 1) that fuzzy-matched abbreviation should ' 
 			+ 'achive. Lower values may produce many false-positive matches, '
 			+ 'higher values may reduce possible matches.');
+	
+	prefs.define('css.alignVendor', false, 
+			'If set to <code>true</code>, all generated vendor-prefixed properties ' 
+			+ 'will be aligned by real property name.');
 	
 	
 	function isNumeric(ch) {
@@ -9107,7 +10238,7 @@ emmet.define('cssResolver', function(require, _) {
 	 * @returns {String}
 	 */
 	function normalizeValue(value) {
-		if (value.charAt(0) == '-' && !/^\-[\.\d]/) {
+		if (value.charAt(0) == '-' && !/^\-[\.\d]/.test(value)) {
 			value = value.replace(/^\-+/, '');
 		}
 		
@@ -9120,6 +10251,10 @@ emmet.define('cssResolver', function(require, _) {
 	
 	function normalizeHexColor(value) {
 		var hex = value.replace(/^#+/, '') || '0';
+		if (hex.toLowerCase() == 't') {
+			return 'transparent';
+		}
+		
 		var repeat = require('utils').repeatString;
 		var color = null;
 		switch (hex.length) {
@@ -9175,30 +10310,6 @@ emmet.define('cssResolver', function(require, _) {
 	
 	function isValidKeyword(keyword) {
 		return _.include(prefs.getArray('css.keywords'), getKeyword(keyword));
-	}
-	
-	/**
-	 * Split snippet into a CSS property-value pair
-	 * @param {String} snippet
-	 */
-	function splitSnippet(snippet) {
-		var utils = require('utils');
-		snippet = utils.trim(snippet);
-		if (snippet.indexOf(':') == -1) {
-			return {
-				name: snippet,
-				value: defaultValue
-			};
-		}
-		
-		var pair = snippet.split(':');
-		
-		return {
-			name: utils.trim(pair.shift()),
-			// replace ${0} tabstop to produce valid vendor-prefixed values
-			// where possible
-			value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
-		};
 	}
 	
 	/**
@@ -9552,7 +10663,7 @@ emmet.define('cssResolver', function(require, _) {
 			
 			while (ch = stream.next()) {
 				if (ch == '#') {
-					stream.match(/^[0-9a-f]+/, true);
+					stream.match(/^t|[0-9a-f]+/i, true);
 					values.push(stream.current());
 				} else if (ch == '-') {
 					if (isValidKeyword(_.last(values)) || 
@@ -9646,15 +10757,11 @@ emmet.define('cssResolver', function(require, _) {
 			var valuesData = this.extractValues(prefixData.property);
 			var abbrData = _.extend(prefixData, valuesData);
 			
-			snippet = resources.findSnippet(syntax, abbrData.property);
-			
-			// fallback to some old snippets like m:a
-//			if (!snippet && ~abbrData.property.indexOf(':')) {
-//				var parts = abbrData.property.split(':');
-//				var propertyName = parts.shift();
-//				snippet = resources.findSnippet(syntax, propertyName) || propertyName;
-//				abbrData.values = this.parseValues(parts.join(':'));
-//			}
+			if (!snippet) {
+				snippet = resources.findSnippet(syntax, abbrData.property);
+			} else {
+				abbrData.values = null;
+			}
 			
 			if (!snippet && prefs.get('css.fuzzySearch')) {
 				// let’s try fuzzy search
@@ -9671,7 +10778,7 @@ emmet.define('cssResolver', function(require, _) {
 				return snippet;
 			}
 			
-			var snippetObj = splitSnippet(snippet);
+			var snippetObj = this.splitSnippet(snippet);
 			var result = [];
 			if (!value && abbrData.values) {
 				value = _.map(abbrData.values, function(val) {
@@ -9685,18 +10792,27 @@ emmet.define('cssResolver', function(require, _) {
 				? findPrefixes(snippetObj.name, autoInsertPrefixes && abbrData.prefixes != 'all')
 				: abbrData.prefixes;
 				
+				
+			var names = [], propName;
 			_.each(prefixes, function(p) {
 				if (p in vendorPrefixes) {
-					result.push(transformSnippet(
-							vendorPrefixes[p].transformName(snippetObj.name) 
-							+ ':' + snippetObj.value,
+					propName = vendorPrefixes[p].transformName(snippetObj.name);
+					names.push(propName);
+					result.push(transformSnippet(propName + ':' + snippetObj.value,
 							isImportant, syntax));
-					
 				}
 			});
 			
 			// put the original property
 			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
+			names.push(snippetObj.name);
+			
+			if (prefs.get('css.alignVendor')) {
+				var pads = require('utils').getStringsPads(names);
+				result = _.map(result, function(prop, i) {
+					return pads[i] + prop;
+				});
+			}
 			
 			return result;
 		},
@@ -9718,6 +10834,30 @@ emmet.define('cssResolver', function(require, _) {
 				return snippet.data;
 			
 			return String(snippet);
+		},
+		
+		/**
+		 * Split snippet into a CSS property-value pair
+		 * @param {String} snippet
+		 */
+		splitSnippet: function(snippet) {
+			var utils = require('utils');
+			snippet = utils.trim(snippet);
+			if (snippet.indexOf(':') == -1) {
+				return {
+					name: snippet,
+					value: defaultValue
+				};
+			}
+			
+			var pair = snippet.split(':');
+			
+			return {
+				name: utils.trim(pair.shift()),
+				// replace ${0} tabstop to produce valid vendor-prefixed values
+				// where possible
+				value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
+			};
 		},
 		
 		getSyntaxPreference: getSyntaxPreference,
@@ -9855,6 +10995,29 @@ emmet.define('cssGradient', function(require, _) {
 	}
 	
 	/**
+	 * Resolves property name (abbreviation): searches for snippet definition in 
+	 * 'resources' and returns new name of matched property
+	 */
+	function resolvePropertyName(name, syntax) {
+		var res = require('resources');
+		var prefs = require('preferences');
+		var snippet = res.findSnippet(syntax, name);
+		
+		if (!snippet && prefs.get('css.fuzzySearch')) {
+			snippet = res.fuzzyFindSnippet(syntax, name, 
+					parseFloat(prefs.get('css.fuzzySearchMinScore')));
+		}
+		
+		if (snippet) {
+			if (!_.isString(snippet)) {
+				snippet = snippet.data;
+			}
+			
+			return require('cssResolver').splitSnippet(snippet).name;
+		}
+	}
+	
+	/**
 	 * Fills-out implied positions in color-stops. This function is useful for
 	 * old Webkit gradient definitions
 	 */
@@ -9979,14 +11142,41 @@ emmet.define('cssGradient', function(require, _) {
 	function pasteGradient(property, gradient, valueRange) {
 		var rule = property.parent;
 		var utils = require('utils');
+		var alignVendor = require('preferences').get('css.alignVendor');
+		
+		// we may have aligned gradient definitions: find the smallest value
+		// separator
+		var sep = property.styleSeparator;
+		var before = property.styleBefore;
 		
 		// first, remove all properties within CSS rule with the same name and
 		// gradient definition
 		_.each(rule.getAll(getPrefixedNames(property.name())), function(item) {
 			if (item != property && /gradient/i.test(item.value())) {
+				if (item.styleSeparator.length < sep.length) {
+					sep = item.styleSeparator;
+				}
+				if (item.styleBefore.length < before.length) {
+					before = item.styleBefore;
+				}
 				rule.remove(item);
 			}
 		});
+		
+		if (alignVendor) {
+			// update prefix
+			if (before != property.styleBefore) {
+				var fullRange = property.fullRange();
+				rule._updateSource(before, fullRange.start, fullRange.start + property.styleBefore.length);
+				property.styleBefore = before;
+			}
+			
+			// update separator value
+			if (sep != property.styleSeparator) {
+				rule._updateSource(sep, property.nameRange().end, property.valueRange().start);
+				property.styleSeparator = sep;
+			}
+		}
 		
 		var value = property.value();
 		if (!valueRange)
@@ -10001,6 +11191,28 @@ emmet.define('cssGradient', function(require, _) {
 		
 		// create list of properties to insert
 		var propsToInsert = getPropertiesForGradient(gradient, property.name());
+		
+		// align prefixed values
+		if (alignVendor) {
+			var values = _.pluck(propsToInsert, 'value');
+			var names = _.pluck(propsToInsert, 'name');
+			values.push(property.value());
+			names.push(property.name());
+			
+			var valuePads = utils.getStringsPads(_.map(values, function(v) {
+				return v.substring(0, v.indexOf('('));
+			}));
+			
+			var namePads = utils.getStringsPads(names);
+			property.name(_.last(namePads) + property.name());
+			
+			_.each(propsToInsert, function(prop, i) {
+				prop.name = namePads[i] + prop.name;
+				prop.value = valuePads[i] + prop.value;
+			});
+			
+			property.value(_.last(valuePads) + property.value());
+		}
 		
 		// put vendor-prefixed definitions before current rule
 		_.each(propsToInsert, function(prop) {
@@ -10067,6 +11279,16 @@ emmet.define('cssGradient', function(require, _) {
 			
 			var sep = css.getSyntaxPreference('valueSeparator', syntax);
 			var end = css.getSyntaxPreference('propertyEnd', syntax);
+			
+			if (require('preferences').get('css.alignVendor')) {
+				var pads = require('utils').getStringsPads(_.map(props, function(prop) {
+					return prop.value.substring(0, prop.value.indexOf('('));
+				}));
+				_.each(props, function(prop, i) {
+					prop.value = pads[i] + prop.value;
+				});
+			}
+			
 			props = _.map(props, function(item) {
 				return item.name + sep + item.value + end;
 			});
@@ -10148,6 +11370,12 @@ emmet.define('cssGradient', function(require, _) {
 				
 				// make sure current property has terminating semicolon
 				css.property.end(';');
+				
+				// resolve CSS property name
+				var resolvedName = resolvePropertyName(css.property.name(), syntax);
+				if (resolvedName) {
+					css.property.name(resolvedName);
+				}
 				
 				pasteGradient(css.property, g.gradient, g.valueRange);
 				editor.replaceContent(css.rule.toString(), ruleStart, ruleEnd, true);
@@ -11549,4 +12777,746 @@ emmet.exec(function(require, _) {
 		
 		return result.join(' ');
 	}
-});
+});/**
+ * Select current line (for simple editors like browser's &lt;textarea&gt;)
+ */
+emmet.exec(function(require, _) {
+	require('actions').add('select_line', function(editor) {
+		var range = editor.getCurrentLineRange();
+		editor.createSelection(range.start, range.end);
+		return true;
+	});
+});emmet.exec(function(require, _){require('resources').setVocabulary({
+	"variables": {
+		"lang": "en",
+		"locale": "en-US",
+		"charset": "UTF-8",
+		"indentation": "\t",
+		"newline": "\n"
+	},
+	
+	"css": {
+		"filters": "html",
+		"snippets": {
+			"@i": "@import url(|);",
+			"@m": "@media print {\n\t|\n}",
+			"@f": "@font-face {\n\tfont-family:|;\n\tsrc:url(|);\n}",
+			"@f+": "@font-face {\n\tfont-family: '${1:FontName}';\n\tsrc: url('${2:FileName}.eot');\n\tsrc: url('${2:FileName}.eot?#iefix') format('embedded-opentype'),\n\t\t url('${2:FileName}.woff') format('woff'),\n\t\t url('${2:FileName}.ttf') format('truetype'),\n\t\t url('${2:FileName}.svg#${1:FontName}') format('svg');\n\tfont-style: ${3:normal};\n\tfont-weight: ${4:normal};\n}",
+			"!": "!important",
+			"pos": "position:|;",
+			"pos:s": "position:static;",
+			"pos:a": "position:absolute;",
+			"pos:r": "position:relative;",
+			"pos:f": "position:fixed;",
+			"t": "top:|;",
+			"t:a": "top:auto;",
+			"r": "right:|;",
+			"r:a": "right:auto;",
+			"b": "bottom:|;",
+			"b:a": "bottom:auto;",
+			"l": "left:|;",
+			"l:a": "left:auto;",
+			"z": "z-index:|;",
+			"z:a": "z-index:auto;",
+			"fl": "float:|;",
+			"fl:n": "float:none;",
+			"fl:l": "float:left;",
+			"fl:r": "float:right;",
+			"cl": "clear:|;",
+			"cl:n": "clear:none;",
+			"cl:l": "clear:left;",
+			"cl:r": "clear:right;",
+			"cl:b": "clear:both;",
+			"d": "display:|;",
+			"d:n": "display:none;",
+			"d:b": "display:block;",
+			"d:i": "display:inline;",
+			"d:ib": "display:inline-block;",
+			"d:li": "display:list-item;",
+			"d:ri": "display:run-in;",
+			"d:cp": "display:compact;",
+			"d:tb": "display:table;",
+			"d:itb": "display:inline-table;",
+			"d:tbcp": "display:table-caption;",
+			"d:tbcl": "display:table-column;",
+			"d:tbclg": "display:table-column-group;",
+			"d:tbhg": "display:table-header-group;",
+			"d:tbfg": "display:table-footer-group;",
+			"d:tbr": "display:table-row;",
+			"d:tbrg": "display:table-row-group;",
+			"d:tbc": "display:table-cell;",
+			"d:rb": "display:ruby;",
+			"d:rbb": "display:ruby-base;",
+			"d:rbbg": "display:ruby-base-group;",
+			"d:rbt": "display:ruby-text;",
+			"d:rbtg": "display:ruby-text-group;",
+			"v": "visibility:|;",
+			"v:v": "visibility:visible;",
+			"v:h": "visibility:hidden;",
+			"v:c": "visibility:collapse;",
+			"ov": "overflow:|;",
+			"ov:v": "overflow:visible;",
+			"ov:h": "overflow:hidden;",
+			"ov:s": "overflow:scroll;",
+			"ov:a": "overflow:auto;",
+			"ovx": "overflow-x:|;",
+			"ovx:v": "overflow-x:visible;",
+			"ovx:h": "overflow-x:hidden;",
+			"ovx:s": "overflow-x:scroll;",
+			"ovx:a": "overflow-x:auto;",
+			"ovy": "overflow-y:|;",
+			"ovy:v": "overflow-y:visible;",
+			"ovy:h": "overflow-y:hidden;",
+			"ovy:s": "overflow-y:scroll;",
+			"ovy:a": "overflow-y:auto;",
+			"ovs": "overflow-style:|;",
+			"ovs:a": "overflow-style:auto;",
+			"ovs:s": "overflow-style:scrollbar;",
+			"ovs:p": "overflow-style:panner;",
+			"ovs:m": "overflow-style:move;",
+			"ovs:mq": "overflow-style:marquee;",
+			"zoo": "zoom:1;",
+			"cp": "clip:|;",
+			"cp:a": "clip:auto;",
+			"cp:r": "clip:rect(|);",
+			"bxz": "box-sizing:|;",
+			"bxz:cb": "box-sizing:content-box;",
+			"bxz:bb": "box-sizing:border-box;",
+			"bxsh": "box-shadow:${1:hoff} ${2:voff} ${3:radius} ${4:color};",
+			"bxsh:n": "box-shadow:none;",
+			"m": "margin:|;",
+			"m:a": "margin:auto;",
+			"mt": "margin-top:|;",
+			"mt:a": "margin-top:auto;",
+			"mr": "margin-right:|;",
+			"mr:a": "margin-right:auto;",
+			"mb": "margin-bottom:|;",
+			"mb:a": "margin-bottom:auto;",
+			"ml": "margin-left:|;",
+			"ml:a": "margin-left:auto;",
+			"p": "padding:|;",
+			"pt": "padding-top:|;",
+			"pr": "padding-right:|;",
+			"pb": "padding-bottom:|;",
+			"pl": "padding-left:|;",
+			"w": "width:|;",
+			"w:a": "width:auto;",
+			"h": "height:|;",
+			"h:a": "height:auto;",
+			"maw": "max-width:|;",
+			"maw:n": "max-width:none;",
+			"mah": "max-height:|;",
+			"mah:n": "max-height:none;",
+			"miw": "min-width:|;",
+			"mih": "min-height:|;",
+			"mar": "max-resolution:${1:res};",
+			"mir": "min-resolution:${1:res};",
+			"ori": "orientation:|;",
+			"ori:l": "orientation:landscape;",
+			"ori:p": "orientation:portrait;",
+			"o": "outline:|;",
+			"o:n": "outline:none;",
+			"oo": "outline-offset:|;",
+			"ow": "outline-width:|;",
+			"os": "outline-style:|;",
+			"oc": "outline-color:#${1:000};",
+			"oc:i": "outline-color:invert;",
+			"bd": "border:|;",
+			"bd+": "border:${1:1px} ${2:solid} ${3:#000};",
+			"bd:n": "border:none;",
+			"bdbk": "border-break:|;",
+			"bdbk:c": "border-break:close;",
+			"bdcl": "border-collapse:|;",
+			"bdcl:c": "border-collapse:collapse;",
+			"bdcl:s": "border-collapse:separate;",
+			"bdc": "border-color:#${1:000};",
+			"bdc:t": "border-color:transparent;",
+			"bdi": "border-image:url(|);",
+			"bdi:n": "border-image:none;",
+			"bdti": "border-top-image:url(|);",
+			"bdti:n": "border-top-image:none;",
+			"bdri": "border-right-image:url(|);",
+			"bdri:n": "border-right-image:none;",
+			"bdbi": "border-bottom-image:url(|);",
+			"bdbi:n": "border-bottom-image:none;",
+			"bdli": "border-left-image:url(|);",
+			"bdli:n": "border-left-image:none;",
+			"bdci": "border-corner-image:url(|);",
+			"bdci:n": "border-corner-image:none;",
+			"bdci:c": "border-corner-image:continue;",
+			"bdtli": "border-top-left-image:url(|);",
+			"bdtli:n": "border-top-left-image:none;",
+			"bdtli:c": "border-top-left-image:continue;",
+			"bdtri": "border-top-right-image:url(|);",
+			"bdtri:n": "border-top-right-image:none;",
+			"bdtri:c": "border-top-right-image:continue;",
+			"bdbri": "border-bottom-right-image:url(|);",
+			"bdbri:n": "border-bottom-right-image:none;",
+			"bdbri:c": "border-bottom-right-image:continue;",
+			"bdbli": "border-bottom-left-image:url(|);",
+			"bdbli:n": "border-bottom-left-image:none;",
+			"bdbli:c": "border-bottom-left-image:continue;",
+			"bdf": "border-fit:|;",
+			"bdf:c": "border-fit:clip;",
+			"bdf:r": "border-fit:repeat;",
+			"bdf:sc": "border-fit:scale;",
+			"bdf:st": "border-fit:stretch;",
+			"bdf:ow": "border-fit:overwrite;",
+			"bdf:of": "border-fit:overflow;",
+			"bdf:sp": "border-fit:space;",
+			"bdl": "border-length:|;",
+			"bdl:a": "border-length:auto;",
+			"bdsp": "border-spacing:|;",
+			"bds": "border-style:|;",
+			"bds:n": "border-style:none;",
+			"bds:h": "border-style:hidden;",
+			"bds:dt": "border-style:dotted;",
+			"bds:ds": "border-style:dashed;",
+			"bds:s": "border-style:solid;",
+			"bds:db": "border-style:double;",
+			"bds:dtds": "border-style:dot-dash;",
+			"bds:dtdtds": "border-style:dot-dot-dash;",
+			"bds:w": "border-style:wave;",
+			"bds:g": "border-style:groove;",
+			"bds:r": "border-style:ridge;",
+			"bds:i": "border-style:inset;",
+			"bds:o": "border-style:outset;",
+			"bdw": "border-width:|;",
+			"bdt": "border-top:|;",
+			"bt": "border-top:|;",
+			"bdt+": "border-top:${1:1px} ${2:solid} ${3:#000};",
+			"bdt:n": "border-top:none;",
+			"bdtw": "border-top-width:|;",
+			"bdts": "border-top-style:|;",
+			"bdts:n": "border-top-style:none;",
+			"bdtc": "border-top-color:#${1:000};",
+			"bdtc:t": "border-top-color:transparent;",
+			"bdr": "border-right:|;",
+			"br": "border-right:|;",
+			"bdr+": "border-right:${1:1px} ${2:solid} ${3:#000};",
+			"bdr:n": "border-right:none;",
+			"bdrw": "border-right-width:|;",
+			"bdrs": "border-right-style:|;",
+			"bdrs:n": "border-right-style:none;",
+			"bdrc": "border-right-color:#${1:000};",
+			"bdrc:t": "border-right-color:transparent;",
+			"bdb": "border-bottom:|;",
+			"bb": "border-bottom:|;",
+			"bdb+": "border-bottom:${1:1px} ${2:solid} ${3:#000};",
+			"bdb:n": "border-bottom:none;",
+			"bdbw": "border-bottom-width:|;",
+			"bdbs": "border-bottom-style:|;",
+			"bdbs:n": "border-bottom-style:none;",
+			"bdbc": "border-bottom-color:#${1:000};",
+			"bdbc:t": "border-bottom-color:transparent;",
+			"bdl": "border-left:|;",
+			"bl": "border-left:|;",
+			"bdl+": "border-left:${1:1px} ${2:solid} ${3:#000};",
+			"bdl:n": "border-left:none;",
+			"bdlw": "border-left-width:|;",
+			"bdls": "border-left-style:|;",
+			"bdls:n": "border-left-style:none;",
+			"bdlc": "border-left-color:#${1:000};",
+			"bdlc:t": "border-left-color:transparent;",
+			"bdrs": "border-radius:|;",
+			"bdtrrs": "border-top-right-radius:|;",
+			"bdtlrs": "border-top-left-radius:|;",
+			"bdbrrs": "border-bottom-right-radius:|;",
+			"bdblrs": "border-bottom-left-radius:|;",
+			"bg": "background:|;",
+			"bg+": "background:${1:#fff} url(${2}) ${3:0} ${4:0} ${5:no-repeat};",
+			"bg:n": "background:none;",
+			"bg:ie": "filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(src='${1:x}.png',sizingMethod='${2:crop}');",
+			"bgc": "background-color:#${1:fff};",
+			"bgc:t": "background-color:transparent;",
+			"bgi": "background-image:url(|);",
+			"bgi:n": "background-image:none;",
+			"bgr": "background-repeat:|;",
+			"bgr:n": "background-repeat:no-repeat;",
+			"bgr:x": "background-repeat:repeat-x;",
+			"bgr:y": "background-repeat:repeat-y;",
+			"bga": "background-attachment:|;",
+			"bga:f": "background-attachment:fixed;",
+			"bga:s": "background-attachment:scroll;",
+			"bgp": "background-position:${1:0} ${2:0};",
+			"bgpx": "background-position-x:|;",
+			"bgpy": "background-position-y:|;",
+			"bgbk": "background-break:|;",
+			"bgbk:bb": "background-break:bounding-box;",
+			"bgbk:eb": "background-break:each-box;",
+			"bgbk:c": "background-break:continuous;",
+			"bgcp": "background-clip:|;",
+			"bgcp:bb": "background-clip:border-box;",
+			"bgcp:pb": "background-clip:padding-box;",
+			"bgcp:cb": "background-clip:content-box;",
+			"bgcp:nc": "background-clip:no-clip;",
+			"bgo": "background-origin:|;",
+			"bgo:pb": "background-origin:padding-box;",
+			"bgo:bb": "background-origin:border-box;",
+			"bgo:cb": "background-origin:content-box;",
+			"bgz": "background-size:|;",
+			"bgz:a": "background-size:auto;",
+			"bgz:ct": "background-size:contain;",
+			"bgz:cv": "background-size:cover;",
+			"c": "color:#${1:000};",
+			"cm": "/* |${child} */",
+			"cn": "content:|;",
+			"tbl": "table-layout:|;",
+			"tbl:a": "table-layout:auto;",
+			"tbl:f": "table-layout:fixed;",
+			"cps": "caption-side:|;",
+			"cps:t": "caption-side:top;",
+			"cps:b": "caption-side:bottom;",
+			"ec": "empty-cells:|;",
+			"ec:s": "empty-cells:show;",
+			"ec:h": "empty-cells:hide;",
+			"lis": "list-style:|;",
+			"lis:n": "list-style:none;",
+			"lisp": "list-style-position:|;",
+			"lisp:i": "list-style-position:inside;",
+			"lisp:o": "list-style-position:outside;",
+			"list": "list-style-type:|;",
+			"list:n": "list-style-type:none;",
+			"list:d": "list-style-type:disc;",
+			"list:c": "list-style-type:circle;",
+			"list:s": "list-style-type:square;",
+			"list:dc": "list-style-type:decimal;",
+			"list:dclz": "list-style-type:decimal-leading-zero;",
+			"list:lr": "list-style-type:lower-roman;",
+			"list:ur": "list-style-type:upper-roman;",
+			"lisi": "list-style-image:|;",
+			"lisi:n": "list-style-image:none;",
+			"q": "quotes:|;",
+			"q:n": "quotes:none;",
+			"q:ru": "quotes:'\\00AB' '\\00BB' '\\201E' '\\201C';",
+			"q:en": "quotes:'\\201C' '\\201D' '\\2018' '\\2019';",
+			"ct": "content:|;",
+			"ct:n": "content:normal;",
+			"ct:oq": "content:open-quote;",
+			"ct:noq": "content:no-open-quote;",
+			"ct:cq": "content:close-quote;",
+			"ct:ncq": "content:no-close-quote;",
+			"ct:a": "content:attr(|);",
+			"ct:c": "content:counter(|);",
+			"ct:cs": "content:counters(|);",
+			"coi": "counter-increment:|;",
+			"cor": "counter-reset:|;",
+			"va": "vertical-align:|;",
+			"va:sup": "vertical-align:super;",
+			"va:t": "vertical-align:top;",
+			"va:tt": "vertical-align:text-top;",
+			"va:m": "vertical-align:middle;",
+			"va:bl": "vertical-align:baseline;",
+			"va:b": "vertical-align:bottom;",
+			"va:tb": "vertical-align:text-bottom;",
+			"va:sub": "vertical-align:sub;",
+			"ta": "text-align:|;",
+			"ta:l": "text-align:left;",
+			"ta:c": "text-align:center;",
+			"ta:r": "text-align:right;",
+			"ta:j": "text-align:justify;",
+			"tal": "text-align-last:|;",
+			"tal:a": "text-align-last:auto;",
+			"tal:l": "text-align-last:left;",
+			"tal:c": "text-align-last:center;",
+			"tal:r": "text-align-last:right;",
+			"td": "text-decoration:|;",
+			"td:n": "text-decoration:none;",
+			"td:u": "text-decoration:underline;",
+			"td:o": "text-decoration:overline;",
+			"td:l": "text-decoration:line-through;",
+			"te": "text-emphasis:|;",
+			"te:n": "text-emphasis:none;",
+			"te:ac": "text-emphasis:accent;",
+			"te:dt": "text-emphasis:dot;",
+			"te:c": "text-emphasis:circle;",
+			"te:ds": "text-emphasis:disc;",
+			"te:b": "text-emphasis:before;",
+			"te:a": "text-emphasis:after;",
+			"th": "text-height:|;",
+			"th:a": "text-height:auto;",
+			"th:f": "text-height:font-size;",
+			"th:t": "text-height:text-size;",
+			"th:m": "text-height:max-size;",
+			"ti": "text-indent:|;",
+			"ti:-": "text-indent:-9999px;",
+			"tj": "text-justify:|;",
+			"tj:a": "text-justify:auto;",
+			"tj:iw": "text-justify:inter-word;",
+			"tj:ii": "text-justify:inter-ideograph;",
+			"tj:ic": "text-justify:inter-cluster;",
+			"tj:d": "text-justify:distribute;",
+			"tj:k": "text-justify:kashida;",
+			"tj:t": "text-justify:tibetan;",
+			"to": "text-outline:|;",
+			"to+": "text-outline:${1:0} ${2:0} ${3:#000};",
+			"to:n": "text-outline:none;",
+			"tr": "text-replace:|;",
+			"tr:n": "text-replace:none;",
+			"tt": "text-transform:|;",
+			"tt:n": "text-transform:none;",
+			"tt:c": "text-transform:capitalize;",
+			"tt:u": "text-transform:uppercase;",
+			"tt:l": "text-transform:lowercase;",
+			"tw": "text-wrap:|;",
+			"tw:n": "text-wrap:normal;",
+			"tw:no": "text-wrap:none;",
+			"tw:u": "text-wrap:unrestricted;",
+			"tw:s": "text-wrap:suppress;",
+			"tsh": "text-shadow:${1:hoff} ${2:voff} ${3:blur} ${4:#000};",
+			"tsh+": "text-shadow:${1:0} ${2:0} ${3:0} ${4:#000};",
+			"tsh:n": "text-shadow:none;",
+			"trf": "transform:|;",
+			"trf:skx": "transform: skewX(${1:angle});",
+			"trf:sky": "transform: skewY(${1:angle});",
+			"trf:sc": "transform: scale(${1:x}, ${2:y});",
+			"trf:scx": "transform: scaleX(${1:x});",
+			"trf:scy": "transform: scaleY(${1:y});",
+			"trf:r": "transform: rotate(${1:angle});",
+			"trf:t": "transform: translate(${1:x}, ${2:y});",
+			"trf:tx": "transform: translateX(${1:x});",
+			"trf:ty": "transform: translateY(${1:y});",
+			"trs": "transition:${1:prop} ${2:time};",
+			"trsde": "transition-delay:${1:time};",
+			"trsdu": "transition-duration:${1:time};",
+			"trsp": "transition-property:${1:prop};",
+			"trstf": "transition-timing-function:${1:tfunc};",
+			"lh": "line-height:|;",
+			"whs": "white-space:|;",
+			"whs:n": "white-space:normal;",
+			"whs:p": "white-space:pre;",
+			"whs:nw": "white-space:nowrap;",
+			"whs:pw": "white-space:pre-wrap;",
+			"whs:pl": "white-space:pre-line;",
+			"whsc": "white-space-collapse:|;",
+			"whsc:n": "white-space-collapse:normal;",
+			"whsc:k": "white-space-collapse:keep-all;",
+			"whsc:l": "white-space-collapse:loose;",
+			"whsc:bs": "white-space-collapse:break-strict;",
+			"whsc:ba": "white-space-collapse:break-all;",
+			"wob": "word-break:|;",
+			"wob:n": "word-break:normal;",
+			"wob:k": "word-break:keep-all;",
+			"wob:l": "word-break:loose;",
+			"wob:bs": "word-break:break-strict;",
+			"wob:ba": "word-break:break-all;",
+			"wos": "word-spacing:|;",
+			"wow": "word-wrap:|;",
+			"wow:nm": "word-wrap:normal;",
+			"wow:n": "word-wrap:none;",
+			"wow:u": "word-wrap:unrestricted;",
+			"wow:s": "word-wrap:suppress;",
+			"lts": "letter-spacing:|;",
+			"f": "font:|;",
+			"f+": "font:${1:1em} ${2:Arial,sans-serif};",
+			"fw": "font-weight:|;",
+			"fw:n": "font-weight:normal;",
+			"fw:b": "font-weight:bold;",
+			"fw:br": "font-weight:bolder;",
+			"fw:lr": "font-weight:lighter;",
+			"fs": "font-style:|;",
+			"fs:n": "font-style:normal;",
+			"fs:i": "font-style:italic;",
+			"fs:o": "font-style:oblique;",
+			"fv": "font-variant:|;",
+			"fv:n": "font-variant:normal;",
+			"fv:sc": "font-variant:small-caps;",
+			"fz": "font-size:|;",
+			"fza": "font-size-adjust:|;",
+			"fza:n": "font-size-adjust:none;",
+			"ff": "font-family:|;",
+			"ff:s": "font-family:serif;",
+			"ff:ss": "font-family:sans-serif;",
+			"ff:c": "font-family:cursive;",
+			"ff:f": "font-family:fantasy;",
+			"ff:m": "font-family:monospace;",
+			"fef": "font-effect:|;",
+			"fef:n": "font-effect:none;",
+			"fef:eg": "font-effect:engrave;",
+			"fef:eb": "font-effect:emboss;",
+			"fef:o": "font-effect:outline;",
+			"fem": "font-emphasize:|;",
+			"femp": "font-emphasize-position:|;",
+			"femp:b": "font-emphasize-position:before;",
+			"femp:a": "font-emphasize-position:after;",
+			"fems": "font-emphasize-style:|;",
+			"fems:n": "font-emphasize-style:none;",
+			"fems:ac": "font-emphasize-style:accent;",
+			"fems:dt": "font-emphasize-style:dot;",
+			"fems:c": "font-emphasize-style:circle;",
+			"fems:ds": "font-emphasize-style:disc;",
+			"fsm": "font-smooth:|;",
+			"fsm:a": "font-smooth:auto;",
+			"fsm:n": "font-smooth:never;",
+			"fsm:aw": "font-smooth:always;",
+			"fst": "font-stretch:|;",
+			"fst:n": "font-stretch:normal;",
+			"fst:uc": "font-stretch:ultra-condensed;",
+			"fst:ec": "font-stretch:extra-condensed;",
+			"fst:c": "font-stretch:condensed;",
+			"fst:sc": "font-stretch:semi-condensed;",
+			"fst:se": "font-stretch:semi-expanded;",
+			"fst:e": "font-stretch:expanded;",
+			"fst:ee": "font-stretch:extra-expanded;",
+			"fst:ue": "font-stretch:ultra-expanded;",
+			"op": "opacity:|;",
+			"op:ie": "filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=100);",
+			"op:ms": "-ms-filter:'progid:DXImageTransform.Microsoft.Alpha(Opacity=100)';",
+			"rz": "resize:|;",
+			"rz:n": "resize:none;",
+			"rz:b": "resize:both;",
+			"rz:h": "resize:horizontal;",
+			"rz:v": "resize:vertical;",
+			"cur": "cursor:|;",
+			"cur:a": "cursor:auto;",
+			"cur:d": "cursor:default;",
+			"cur:c": "cursor:crosshair;",
+			"cur:ha": "cursor:hand;",
+			"cur:he": "cursor:help;",
+			"cur:m": "cursor:move;",
+			"cur:p": "cursor:pointer;",
+			"cur:t": "cursor:text;",
+			"pgbb": "page-break-before:|;",
+			"pgbb:au": "page-break-before:auto;",
+			"pgbb:al": "page-break-before:always;",
+			"pgbb:l": "page-break-before:left;",
+			"pgbb:r": "page-break-before:right;",
+			"pgbi": "page-break-inside:|;",
+			"pgbi:au": "page-break-inside:auto;",
+			"pgbi:av": "page-break-inside:avoid;",
+			"pgba": "page-break-after:|;",
+			"pgba:au": "page-break-after:auto;",
+			"pgba:al": "page-break-after:always;",
+			"pgba:l": "page-break-after:left;",
+			"pgba:r": "page-break-after:right;",
+			"orp": "orphans:|;",
+			"wid": "widows:|;"
+		}
+	},
+	
+	"html": {
+		"filters": "html",
+		"profile": "html",
+		"snippets": {
+			"c": "<!-- |${child} -->",
+			"cc:ie6": "<!--[if lte IE 6]>\n\t${child}|\n<![endif]-->",
+			"cc:ie": "<!--[if IE]>\n\t${child}|\n<![endif]-->",
+			"cc:noie": "<!--[if !IE]><!-->\n\t${child}|\n<!--<![endif]-->",
+			"html:4t": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n<html lang=\"${lang}\">\n<head>\n\t<meta http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\">\n\t<title>${1:Document}</title>\n</head>\n<body>\n\t${child}${2}\n</body>\n</html>",
+			"html:4s": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html lang=\"${lang}\">\n<head>\n\t<meta http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\">\n\t<title>${1:Document}</title>\n</head>\n<body>\n\t${child}${2}\n</body>\n</html>",
+			"html:xt": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"${lang}\">\n<head>\n\t<meta http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\" />\n\t<title></title>\n</head>\n<body>\n\t${child}${2}\n</body>\n</html>",
+			"html:xs": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"${lang}\">\n<head>\n\t<meta http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\" />\n\t<title>${1:Document}</title>\n</head>\n<body>\n\t${child}${2}\n</body>\n</html>",
+			"html:xxs": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"${lang}\">\n<head>\n\t<meta http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\" />\n\t<title>${1:Document}</title>\n</head>\n<body>\n\t${child}${2}\n</body>\n</html>",
+			"html:5": "<!doctype html>\n<html lang=\"${lang}\">\n<head>\n\t<meta charset=\"${charset}\">\n\t<title>${1:Document}</title>\n</head>\n<body>\n\t${child}${2}\n</body>\n</html>"
+		},
+		
+		"abbreviations": {
+			"!": "html:5",
+			"a": "<a href=\"\">",
+			"a:link": "<a href=\"http://|\">",
+			"a:mail": "<a href=\"mailto:|\">",
+			"abbr": "<abbr title=\"\">",
+			"acronym": "<acronym title=\"\">",
+			"base": "<base href=\"\" />",
+			"bdo": "<bdo dir=\"\">",
+			"bdo:r": "<bdo dir=\"rtl\">",
+			"bdo:l": "<bdo dir=\"ltr\">",
+			"link": "<link rel=\"stylesheet\" href=\"\" />",
+			"link:css": "<link rel=\"stylesheet\" href=\"${1:style}.css\" media=\"all\" />",
+			"link:print": "<link rel=\"stylesheet\" href=\"${1:print}.css\" media=\"print\" />",
+			"link:favicon": "<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"${1:favicon.ico}\" />",
+			"link:touch": "<link rel=\"apple-touch-icon\" href=\"${1:favicon.png}\" />",
+			"link:rss": "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"${1:rss.xml}\" />",
+			"link:atom": "<link rel=\"alternate\" type=\"application/atom+xml\" title=\"Atom\" href=\"${1:atom.xml}\" />",
+			"meta:utf": "<meta http-equiv=\"Content-Type\" content=\"text/html;charset=UTF-8\" />",
+			"meta:win": "<meta http-equiv=\"Content-Type\" content=\"text/html;charset=windows-1251\" />",
+			"meta:compat": "<meta http-equiv=\"X-UA-Compatible\" content=\"${1:IE=7}\" />",
+			"style": "<style>",
+			"script": "<script>",
+			"script:src": "<script src=\"\">",
+			"img": "<img src=\"\" alt=\"\" />",
+			"iframe": "<iframe src=\"\" frameborder=\"0\">",
+			"embed": "<embed src=\"\" type=\"\" />",
+			"object": "<object data=\"\" type=\"\">",
+			"param": "<param name=\"\" value=\"\" />",
+			"map": "<map name=\"\">",
+			"area": "<area shape=\"\" coords=\"\" href=\"\" alt=\"\" />",
+			"area:d": "<area shape=\"default\" href=\"\" alt=\"\" />",
+			"area:c": "<area shape=\"circle\" coords=\"\" href=\"\" alt=\"\" />",
+			"area:r": "<area shape=\"rect\" coords=\"\" href=\"\" alt=\"\" />",
+			"area:p": "<area shape=\"poly\" coords=\"\" href=\"\" alt=\"\" />",
+			"form": "<form action=\"\">",
+			"form:get": "<form action=\"\" method=\"get\">",
+			"form:post": "<form action=\"\" method=\"post\">",
+			"label": "<label for=\"\">",
+			"input": "<input type=\"\" />",
+			"input:hidden": "<input type=\"hidden\" name=\"\" />",
+			"input:h": "<input type=\"hidden\" name=\"\" />",
+			"input:text": "<input type=\"text\" name=\"\" id=\"\" />",
+			"input:t": "<input type=\"text\" name=\"\" id=\"\" />",
+			"input:search": "<input type=\"search\" name=\"\" id=\"\" />",
+			"input:email": "<input type=\"email\" name=\"\" id=\"\" />",
+			"input:url": "<input type=\"url\" name=\"\" id=\"\" />",
+			"input:password": "<input type=\"password\" name=\"\" id=\"\" />",
+			"input:p": "<input type=\"password\" name=\"\" id=\"\" />",
+			"input:datetime": "<input type=\"datetime\" name=\"\" id=\"\" />",
+			"input:date": "<input type=\"date\" name=\"\" id=\"\" />",
+			"input:datetime-local": "<input type=\"datetime-local\" name=\"\" id=\"\" />",
+			"input:month": "<input type=\"month\" name=\"\" id=\"\" />",
+			"input:week": "<input type=\"week\" name=\"\" id=\"\" />",
+			"input:time": "<input type=\"time\" name=\"\" id=\"\" />",
+			"input:number": "<input type=\"number\" name=\"\" id=\"\" />",
+			"input:color": "<input type=\"color\" name=\"\" id=\"\" />",
+			"input:checkbox": "<input type=\"checkbox\" name=\"\" id=\"\" />",
+			"input:c": "<input type=\"checkbox\" name=\"\" id=\"\" />",
+			"input:radio": "<input type=\"radio\" name=\"\" id=\"\" />",
+			"input:r": "<input type=\"radio\" name=\"\" id=\"\" />",
+			"input:range": "<input type=\"range\" name=\"\" id=\"\" />",
+			"input:file": "<input type=\"file\" name=\"\" id=\"\" />",
+			"input:f": "<input type=\"file\" name=\"\" id=\"\" />",
+			"input:submit": "<input type=\"submit\" value=\"\" />",
+			"input:s": "<input type=\"submit\" value=\"\" />",
+			"input:image": "<input type=\"image\" src=\"\" alt=\"\" />",
+			"input:i": "<input type=\"image\" src=\"\" alt=\"\" />",
+			"input:reset": "<input type=\"reset\" value=\"\" />",
+			"input:button": "<input type=\"button\" value=\"\" />",
+			"input:b": "<input type=\"button\" value=\"\" />",
+			"select": "<select name=\"\" id=\"\"></select>",
+			"option": "<option value=\"\"></option>",
+			"textarea": "<textarea name=\"\" id=\"\" cols=\"${1:30}\" rows=\"${2:10}\">",
+			"menu:context": "<menu type=\"context\">",
+			"menu:c": "<menu type=\"context\">",
+			"menu:toolbar": "<menu type=\"toolbar\">",
+			"menu:t": "<menu type=\"toolbar\">",
+			"video": "<video src=\"\">",
+			"audio": "<audio src=\"\">",
+			"html:xml": "<html xmlns=\"http://www.w3.org/1999/xhtml\">",
+			
+			"bq": "blockquote",
+			"acr": "acronym",
+			"fig": "figure",
+			"figc": "figcaption",
+			"ifr": "iframe",
+			"emb": "embed",
+			"obj": "object",
+			"src": "source",
+			"cap": "caption",
+			"colg": "colgroup",
+			"fst": "fieldset",
+			"btn": "button",
+			"optg": "optgroup",
+			"opt": "option",
+			"tarea": "textarea",
+			"leg": "legend",
+			"sect": "section",
+			"art": "article",
+			"hdr": "header",
+			"ftr": "footer",
+			"adr": "address",
+			"dlg": "dialog",
+			"str": "strong",
+			"prog": "progress",
+			"fset": "fieldset",
+			"datag": "datagrid",
+			"datal": "datalist",
+			"kg": "keygen",
+			"out": "output",
+			"det": "details",
+			"cmd": "command",
+			
+			"ol+": "ol>li",
+			"ul+": "ul>li",
+			"dl+": "dl>dt+dd",
+			"map+": "map>area",
+			"table+": "table>tr>td",
+			"colgroup+": "colgroup>col",
+			"colg+": "colgroup>col",
+			"tr+": "tr>td",
+			"select+": "select>option",
+			"optgroup+": "optgroup>option",
+			"optg+": "optgroup>option"
+		}
+	},
+	
+	"xml": {
+		"extends": "html",
+		"profile": "xml",
+		"filters": "html"
+	},
+	
+	"xsl": {
+		"extends": "html",
+		"profile": "xml",
+		"filters": "html, xsl",
+		"abbreviations": {
+			"tm": "<xsl:template match=\"\" mode=\"\">",
+			"tmatch": "tm",
+			"tn": "<xsl:template name=\"\">",
+			"tname": "tn",
+			"call": "<xsl:call-template name=\"\"/>",
+			"ap": "<xsl:apply-templates select=\"\" mode=\"\"/>",
+			"api": "<xsl:apply-imports/>",
+			"imp": "<xsl:import href=\"\"/>",
+			"inc": "<xsl:include href=\"\"/>",
+
+			"ch": "<xsl:choose>",
+			"xsl:when": "<xsl:when test=\"\">",
+			"wh": "xsl:when",
+			"ot": "<xsl:otherwise>",
+			"if": "<xsl:if test=\"\">",
+
+			"par": "<xsl:param name=\"\">",
+			"pare": "<xsl:param name=\"\" select=\"\"/>",
+			"var": "<xsl:variable name=\"\">",
+			"vare": "<xsl:variable name=\"\" select=\"\"/>",
+			"wp": "<xsl:with-param name=\"\" select=\"\"/>",
+			"key": "<xsl:key name=\"\" match=\"\" use=\"\"/>",
+
+			"elem": "<xsl:element name=\"\">",
+			"attr": "<xsl:attribute name=\"\">",
+			"attrs": "<xsl:attribute-set name=\"\">",
+
+			"cp": "<xsl:copy select=\"\"/>",
+			"co": "<xsl:copy-of select=\"\"/>",
+			"val": "<xsl:value-of select=\"\"/>",
+			"each": "<xsl:for-each select=\"\">",
+			"for": "each",
+			"tex": "<xsl:text></xsl:text>",
+
+			"com": "<xsl:comment>",
+			"msg": "<xsl:message terminate=\"no\">",
+			"fall": "<xsl:fallback>",
+			"num": "<xsl:number value=\"\"/>",
+			"nam": "<namespace-alias stylesheet-prefix=\"\" result-prefix=\"\"/>",
+			"pres": "<xsl:preserve-space elements=\"\"/>",
+			"strip": "<xsl:strip-space elements=\"\"/>",
+			"proc": "<xsl:processing-instruction name=\"\">",
+			"sort": "<xsl:sort select=\"\" order=\"\"/>",
+
+			"choose+": "xsl:choose>xsl:when+xsl:otherwise"
+		}
+	},
+	
+	"haml": {
+		"filters": "haml",
+		"extends": "html",
+		"profile": "xml"
+	},
+	
+	"scss": {
+		"extends": "css"
+	},
+	
+	"sass": {
+		"extends": "css"
+	},
+	
+	"less": {
+		"extends": "css"
+	},
+	
+	"stylus": {
+		"extends": "css"
+	}
+}
+, 'system');});

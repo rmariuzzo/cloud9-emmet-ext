@@ -18,13 +18,13 @@ else {
         }
         exec('git clone https://github.com/emmetio/emmet.git ' + path);
         cd(path);
-        exec('ant plugin.generic');
+        exec('ant plugin.generic-full');
         if (test('-d', vendorsPath)) {
             rm('-rf', vendorsPath + '/*');
         } else {
             mkdir('-p', vendorsPath);
         }
-        cp('-f', path + '/dist/emmet-core.js', vendorsPath);
+        cp('-f', path + '/dist/emmet-full.js', vendorsPath);
         cp('-f', path + '/javascript/underscore.js', vendorsPath);
         rm('-rf', path);
     });

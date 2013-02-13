@@ -11,7 +11,7 @@ requirejs.config({
         './vendors/underscore.js': {
             exports: '_'
         },
-        './vendors/emmet-core.js': {
+        './vendors/emmet-full.js': {
             deps : ['_'],
             exports: 'emmet'
         },
@@ -33,7 +33,7 @@ define(function(require, exports, module) {
 
     // Extension's dependencies.
     require('./vendors/underscore.js');
-    require('./vendors/emmet-core.js');
+    require('./vendors/emmet-full.js');
     var editorProxy = require('./cloud9-editor-proxy.js');
 
     // Cloud9 extension definition.
