@@ -1,14 +1,48 @@
 Cloud9 Emmet Extension
 ==========================
 
-An [Cloud9ide](http://c9.io/) extension for [Emmet](http://emmet.io/) integration.
+A [Cloud9ide](http://c9.io/) extension for [Emmet](http://emmet.io/) integration.
 
 
 What is Emmet?
 ------------------
 
-Emmet (known as Zen Coding) is a web-developer's toolkit that can greatly improve your HTML & CSS workflow.
+Emmet (known as Zen Coding) is a web-developer's toolkit that can greatly 
+improve your HTML & CSS workflow.
 
+Basically, most text editors out there allow you to store and re-use commonly 
+used code chunks, called “snippets”. While snippets are a good way to boost 
+your productivity, all implementations have common pitfalls: you have to define 
+the snippet first and you can’t extend them in runtime.
+
+Emmet takes the snippets idea to a whole new level: you can type CSS-like 
+expressions that can be dynamically parsed, and produce output depending on 
+what you type in the abbreviation. Emmet is developed and optimised for 
+web-developers whose workflow depends on HTML/XML and CSS, but can be used with 
+programming languages too.
+
+Available Actions
+-----------------
+
+ - Expand Abbreviation - <kbd>CTRL</kbd> + <kbd>SHIFT</kbd> + <kbd>E</kbd>
+
+Upcoming Actions
+----------------
+
+ - Match Tag Pair
+ - Go to Matching Pair
+ - Wrap with Abbreviation
+ - Go to Edit Point
+ - Select Item
+ - Toggle Comment
+ - Split/Join Tag
+ - Remove Tag
+ - Merge Lines
+ - Update Image Size
+ - Evaluate Math Expression
+ - Increment/Decrement Number
+ - Reflect CSS Value
+ - Encode/Decode Image to data:URL
 
 Development
 -----------
