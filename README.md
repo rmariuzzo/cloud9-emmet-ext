@@ -21,6 +21,15 @@ what you type in the abbreviation. Emmet is developed and optimised for
 web-developers whose workflow depends on HTML/XML and CSS, but can be used with 
 programming languages too.
 
+Installation
+============
+
+ 1. Go to your Cloud9 Workspace.
+ 2. Go to **Tools**, and click **Extension Manager**.
+ 3. Paste the following URL: `https://raw.github.com/rmariuzzo/cloud9-emmet-ext/master/cloud9-emmet-ext.js`, click **Add**, and click **Done**.
+
+Voilà! You are ready to Zen Coding!
+
 Available Actions
 -----------------
 
@@ -53,6 +62,6 @@ Follow these instruction to start developing:
  2. Clone your fork into Cloud9 IDE.
  3. Start a terminal in Cloud9 IDE and type: `npm install` (this will download and install some dependencies).
  4. In Cloud9 IDE go to _Tools_ and click over _Extension Manager_.
- 5. Add the URL of your working: `https://c9.io/<your-username>/cloud9-emmet-ext/workspace/cloud9-emmet-ext.js`.
+ 5. Add the URL of your working copy: `https://c9.io/<your-username>/cloud9-emmet-ext/workspace/cloud9-emmet-ext.js`.
 
 Now, you are good to code!
