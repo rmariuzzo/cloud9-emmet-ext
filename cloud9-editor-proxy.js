@@ -36,7 +36,8 @@ define(function(require, exports, module) {
         syntaxMap: {
             'css' : 'css',
             'html' : 'html',
-            'xml' : 'xml'
+            'xml' : 'xml',
+            'less' : 'css'
         },
 
         // The current editor.
