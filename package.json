@@ -1,6 +1,6 @@
 {
 	"name": "cloud9-emmet-ext",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"devDependencies": {
 		"shelljs": "latest",
 		"tmp": "latest"
