@@ -17,7 +17,7 @@ the snippet first and you can’t extend them in runtime.
 
 Emmet takes the snippets idea to a whole new level: you can type CSS-like 
 expressions that can be dynamically parsed, and produce output depending on 
-what you type in the abbreviation. Emmet is developed and optimised for 
+what you type in the abbreviation. Emmet is developed and optimized for 
 web-developers whose workflow depends on HTML/XML and CSS, but can be used with 
 programming languages too.
 

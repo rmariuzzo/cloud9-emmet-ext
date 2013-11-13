@@ -12,7 +12,7 @@ requirejs.config({
             exports: '_'
         },
         './vendors/emmet-full.js': {
-            deps : ['_'],
+            deps: ['_'],
             exports: 'emmet'
         },
         './cloud9-editor-proxy.js': {
@@ -113,7 +113,7 @@ define(function(require, exports, module) {
         },
 
         /**
-         * Destroy the extension depdendencies.
+         * Destroy the extension dependencies.
          */
         destroy: function() {
 
@@ -135,7 +135,7 @@ define(function(require, exports, module) {
 
         if (this.disabled === true)
             return;
-        
+
         // Set current editor.
         if (!editor)
             editor = editors.currentEditor;
@@ -144,8 +144,8 @@ define(function(require, exports, module) {
             editor = editor.amlEditor.$editor;
 
         editorProxy.setEditor(editor);
-        
-        // Delegate emmet action.
+
+        // Delegate Emmet action.
         try {
             emmet.require('actions').run(name, editorProxy);
         } catch (err) {}

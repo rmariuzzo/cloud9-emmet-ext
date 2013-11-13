@@ -1,15 +1,13 @@
 require('shelljs/global');
 var tmp = require('tmp');
-var fs  = require('fs');
+var fs = require('fs');
 
 // Check prerequisites.
 if (!which('git')) {
     console.log('Warning: `git` not installed.');
-}
-else if (!which('ant')) {
+} else if (!which('ant')) {
     console.log('Warning: `ant` not installed.');
-}
-else {
+} else {
     var vendorsPath = pwd() + '/vendors';
     // Get Emmet.io sources.
     tmp.dir(function(err, path) {
