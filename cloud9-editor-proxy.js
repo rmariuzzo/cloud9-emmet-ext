@@ -14,7 +14,7 @@ requirejs.config({
             exports: '_'
         },
         './vendors/emmet-full.js': {
-            deps : ['_'],
+            deps: ['_'],
             exports: 'emmet'
         }
     }
@@ -22,22 +22,22 @@ requirejs.config({
 
 // Emmet Editor proxy implementation AMD definition.
 define(function(require, exports, module) {
-    
+
     // ACE dependencies.
     var Range = require('ace/range');
-    
+
     // Extension's dependencies.
     require('./vendors/underscore.js');
     require('./vendors/emmet-full.js');
 
     // IEmmetEditor.js proxy implementation.
     var editorProxy = {
-        
+
         syntaxMap: {
-            'css' : 'css',
-            'html' : 'html',
-            'xml' : 'xml',
-            'less' : 'css'
+            'css': 'css',
+            'html': 'html',
+            'xml': 'xml',
+            'less': 'css'
         },
 
         // The current editor.
@@ -48,13 +48,13 @@ define(function(require, exports, module) {
 
         /**
          * Returns character indexes of selected text: object with <code>start</code>
-         * and <code>end</code> properties. If there's no selection, should return 
+         * and <code>end</code> properties. If there's no selection, should return
          * object with <code>start</code> and <code>end</code> properties referring
          * to current caret position
          * @return {Object}
          * @example
          * var selection = editor.getSelectionRange();
-         * alert(selection.start + ', ' + selection.end); 
+         * alert(selection.start + ', ' + selection.end);
          */
         getSelectionRange: function() {
             var range = this.editor.getSelection().getRange();
@@ -66,13 +66,13 @@ define(function(require, exports, module) {
 
         /**
          * Creates selection from <code>start</code> to <code>end</code> character
-         * indexes. If <code>end</code> is ommited, this method should place caret 
+         * indexes. If <code>end</code> is omitted, this method should place caret
          * and <code>start</code> index
          * @param {Number} start
          * @param {Number} [end]
          * @example
          * editor.createSelection(10, 40);
-         * 
+         *
          * //move caret to 15th character
          * editor.createSelection(15);
          */
@@ -131,20 +131,20 @@ define(function(require, exports, module) {
         },
 
         /**
-         * Replace editor's content or it's part (from <code>start</code> to 
-         * <code>end</code> index). If <code>value</code> contains 
-         * <code>caret_placeholder</code>, the editor will put caret into 
+         * Replace editor's content or it's part (from <code>start</code> to
+         * <code>end</code> index). If <code>value</code> contains
+         * <code>caret_placeholder</code>, the editor will put caret into
          * this position. If you skip <code>start</code> and <code>end</code>
-         * arguments, the whole target's content will be replaced with 
-         * <code>value</code>. 
-         * 
+         * arguments, the whole target's content will be replaced with
+         * <code>value</code>.
+         *
          * If you pass <code>start</code> argument only,
-         * the <code>value</code> will be placed at <code>start</code> string 
-         * index of current content. 
-         * 
+         * the <code>value</code> will be placed at <code>start</code> string
+         * index of current content.
+         *
          * If you pass <code>start</code> and <code>end</code> arguments,
-         * the corresponding substring of current target's content will be 
-         * replaced with <code>value</code>. 
+         * the corresponding substring of current target's content will be
+         * replaced with <code>value</code>.
          * @param {String} value Content you want to paste
          * @param {Number} [start] Start index of editor's content
          * @param {Number} [end] End index of editor's content
@@ -154,16 +154,16 @@ define(function(require, exports, module) {
 
             end = end || start || 0;
             var row = this.editor.getCursorPosition().row;
-            
+
             // Find new caret position.
-    		var tabstopData = emmet.require('tabStops').extract(value, {
-				escape: function(ch) {
-					return ch;
-				}
-			});
-            
+            var tabstopData = emmet.require('tabStops').extract(value, {
+                escape: function(ch) {
+                    return ch;
+                }
+            });
+
             value = tabstopData.text;
-            
+
             this.editor.selection.setSelectionRange({
                 start: {
                     row: row,
@@ -174,7 +174,7 @@ define(function(require, exports, module) {
                     column: end
                 }
             });
-            
+
             this.editor.insert(value);
         },
 
@@ -197,13 +197,13 @@ define(function(require, exports, module) {
 
         /**
          * Returns current output profile name (see profile module).
-         * In most cases, this method should return <code>null</code> and let 
+         * In most cases, this method should return <code>null</code> and let
          * Emmet guess best profile name for current syntax and user data.
-         * In case you’re using advanced editor with access to syntax scopes 
-         * (like Sublime Text 2), you can return syntax name for current scope. 
+         * In case you're using advanced editor with access to syntax scopes
+         * (like Sublime Text 2), you can return syntax name for current scope.
          * For example, you may return `line` profile when editor caret is inside
          * string of programming language.
-         *  
+         *
          * @return {String}
          */
         getProfileName: function() {
@@ -232,7 +232,7 @@ define(function(require, exports, module) {
         /**
          * Returns current editor's file path
          * @return {String}
-         * @since 0.65 
+         * @since 0.65
          */
         getFilePath: function() {
             return location.href;
